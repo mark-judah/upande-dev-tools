@@ -36,7 +36,7 @@ async function send(c: Capture) {
     project: c.project,
     source: 'Mobile App',
   });
-  if (c.addToToday && c.request_type === 'Note') await call('requests.promote_to_task', { name: doc.name });
+  if (c.addToToday && c.request_type === 'Note') await call('requests.promote_to_task', { name: doc.name, planned_today: 1 });
 }
 
 export const useCaptureQueue = create<State>((set, get) => ({

@@ -14,6 +14,7 @@ import { DrawerItemsProvider } from '@/core/ui/drawer-items-context';
 import { useAuthStore } from '@/core/auth/store';
 import { useNetworkStore } from '@/core/network/store';
 import { drawerFor } from '@/navigation';
+import { NotificationsHost } from '@/features/notifications/NotificationsHost';
 import { CaptureHost } from '@/features/capture/CaptureHost';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -76,6 +77,7 @@ export default function RootLayout() {
             </Stack>
             <OfflineBanner />
             <CaptureHost />
+            <NotificationsHost />
             <DialogHost />
           </ToastProvider>
         </DrawerItemsProvider>

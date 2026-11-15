@@ -41,6 +41,13 @@
         {
           "faceIDPermission": "Unlock Upande Dev Tools with Face ID"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/upande_logo.png",
+          "color": "#171717"
+        }
       ]
     ],
     "experiments": {

@@ -11,6 +11,8 @@ import { useToast } from '@/core/ui/Toast';
 import { useAuthStore } from '@/core/auth/store';
 import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { NEXT_STAGE } from '@/features/shared/types';
+import { useAchievements } from '@/features/gamification/achievements-store';
+import { STREAK_MILESTONES } from '@/features/gamification/achievements-api';
 import { isOverdue, stageOf, useMyDay } from './my-day-store';
 import { format } from 'date-fns';
 
@@ -44,7 +46,13 @@ export function MyDayScreen() {
       if (!ok) toast.showError('Could not update the task');
       else if (next === 'Done') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        toast.showSuccess('Task closed');
+        const before = useAchievements.getState().data;
+        const after = await useAchievements.getState().load();
+        const gained = after && before ? after.points_total - before.points_total : 0;
+        toast.showSuccess(gained > 0 ? `Task closed +${gained} pts` : 'Task closed');
+        if (after && after.streak > (before?.streak ?? 0) && STREAK_MILESTONES.includes(after.streak)) {
+          toast.showInfo(`${after.streak} day streak. Keep it going!`);
+        }
       }
     },
     [moveTask, toast],

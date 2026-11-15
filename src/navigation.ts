@@ -9,7 +9,12 @@ export const DRAWER: DrawerItem[] = [
   { label: 'Backlog', href: '/backlog', icon: 'list-outline', roles: DEV },
   { label: 'Deployments', href: '/deployments', icon: 'rocket-outline', roles: DEV },
   { label: 'Repos', href: '/repos', icon: 'git-branch-outline', roles: DEV },
+  { label: 'Achievements', href: '/achievements', icon: 'trophy-outline', roles: DEV },
   { label: 'Review Queue', href: '/review-queue', icon: 'checkmark-done-outline', roles: PM },
+  { label: 'PM Dashboard', href: '/pm-dashboard', icon: 'stats-chart-outline', roles: PM },
+  { label: 'Activity', href: '/activity', icon: 'pulse-outline', roles: DEV },
+  { label: 'Snapshots', href: '/snapshots', icon: 'camera-outline', roles: DEV },
+  { label: 'Notifications', href: '/notification-settings', icon: 'notifications-outline', roles: DEV },
 ];
 
 export function drawerFor(roles: string[]): DrawerItem[] {

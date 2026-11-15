@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/core/ui/Screen';
@@ -7,6 +8,7 @@ import { useToast } from '@/core/ui/Toast';
 import { api, mapAxiosError } from '@/core/api/client';
 import { call } from '@/core/api/call';
 import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { CommentThread } from '@/features/comments/CommentThread';
 import { useLoad } from './useLoad';
 import { Pill, priorityTone } from './Pill';
 import { NEXT_STAGE, TASK_STAGE, type Stage } from './types';
@@ -25,6 +27,11 @@ export function RecordDetail({ doctype }: { doctype: 'Task' | 'Request' }) {
   const { name } = useLocalSearchParams<{ name: string }>();
   const { data, loading, error, reload } = useLoad(() => getDoc(doctype, name));
   const toast = useToast();
+  const [commentsKey, setCommentsKey] = useState(0);
+  const refresh = async () => {
+    setCommentsKey((k) => k + 1);
+    await reload();
+  };
 
   const isTask = doctype === 'Task';
   const title = (isTask ? data?.subject : data?.title) ?? name;
@@ -58,7 +65,7 @@ export function RecordDetail({ doctype }: { doctype: 'Task' | 'Request' }) {
       loading={loading && !data}
       error={!data ? error : null}
       onRetry={reload}
-      onRefresh={reload}
+      onRefresh={refresh}
       footer={
         next ? <Button label={`Move to ${next}`} onPress={move} /> : !isTask && data?.request_type === 'Note' && data?.workflow_state !== 'Completed' && !data?.linked_task
           ? <Button label="Promote to task" onPress={promote} />
@@ -78,6 +85,7 @@ export function RecordDetail({ doctype }: { doctype: 'Task' | 'Request' }) {
       {plain(data?.description) ? (
         <Card title="Details"><Text style={s.body}>{plain(data?.description)}</Text></Card>
       ) : null}
+      {data ? <CommentThread doctype={doctype} name={name} refreshKey={commentsKey} /> : null}
     </Screen>
   );
 }
