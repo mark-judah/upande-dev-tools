@@ -17,19 +17,13 @@ type Portfolio = {
   wins: Win[];
   risks: Risk[];
 };
-type Project = { name: string; project_name: string; status: string; custom_project_scope?: string; total_tasks: number; completed_tasks: number; overdue_tasks: number; open_requests: number };
-type Health = { project_count: number; total_overdue_tasks: number; total_open_requests: number; projects: Project[] };
-type Dev = { user: string; full_name: string; open_tasks: number; due_today: number; overdue: number; incoming_requests: number };
-type Workload = { open_tasks: number; closed_tasks: number; developers: Dev[] };
-type All = { portfolio: Portfolio; health: Health; workload: Workload };
+type Dev = { user: string; name: string; open: number; working: number; overdue: number; delivered: number; over_capacity?: boolean };
+type Project = { name: string; project_name: string; custom_project_scope?: string; total: number; done: number; overdue: number; requests: number };
+type All = { portfolio: Portfolio; people: Dev[]; projects: Project[] };
 
 const load = async (): Promise<All> => {
-  const [portfolio, health, workload] = await Promise.all([
-    call<Portfolio>('portfolio.get_portfolio', { days: 30 }, true),
-    call<Health>('project_health.get_project_health', {}, true),
-    call<Workload>('project_health.get_team_workload', {}, true),
-  ]);
-  return { portfolio, health, workload };
+  const portfolio = await call<Portfolio & { people?: Dev[]; projects?: Project[] }>('portfolio.get_portfolio', { days: 30 }, true);
+  return { portfolio, people: portfolio.people ?? [], projects: portfolio.projects ?? [] };
 };
 
 const fmt = (k: Kpi) => {
@@ -107,37 +101,37 @@ export function PMDashboardScreen() {
           </Card>
 
           <Card title="Team workload">
-            {data.workload.developers.length === 0 ? <Text style={s.muted}>No open tasks.</Text> : null}
-            {data.workload.developers.map((d) => {
-              const max = Math.max(1, ...data.workload.developers.map((x) => x.open_tasks));
+            {data.people.length === 0 ? <Text style={s.muted}>No open tasks.</Text> : null}
+            {data.people.map((d) => {
+              const max = Math.max(1, ...data.people.map((x) => x.open));
               return (
                 <View key={d.user} style={s.dev}>
                   <View style={s.between}>
-                    <Text style={s.name}>{d.full_name}</Text>
+                    <Text style={s.name}>{d.name}</Text>
                     <Text style={s.muted}>
-                      {d.open_tasks} open{d.due_today ? ` · ${d.due_today} today` : ''}
+                      {d.open} open{d.working ? ` · ${d.working} working` : ''}
                       {d.overdue ? ` · ${d.overdue} overdue` : ''}
                     </Text>
                   </View>
-                  <ProgressBar value={(d.open_tasks / max) * 1.5} exceeded={d.overdue > 0 && d.overdue / d.open_tasks > 0.5} />
+                  <ProgressBar scale={1} value={d.open / max} exceeded={!!d.over_capacity} />
                 </View>
               );
             })}
           </Card>
 
-          <Card title={`Projects (${data.health.project_count})`}>
-            {data.health.projects.map((pr) => {
-              const pct = pr.total_tasks ? pr.completed_tasks / pr.total_tasks : 0;
+          <Card title={`Projects (${data.projects.length})`}>
+            {data.projects.map((pr) => {
+              const pct = pr.total ? pr.done / pr.total : 0;
               return (
                 <View key={pr.name} style={s.dev}>
                   <View style={s.between}>
                     <Text style={[s.name, { flex: 1 }]} numberOfLines={1}>{pr.project_name}</Text>
-                    <Pill label={pr.status} tone={pr.status === 'Completed' ? 'success' : 'neutral'} />
+                    {pr.custom_project_scope ? <Pill label={pr.custom_project_scope} /> : null}
                   </View>
-                  <ProgressBar value={pct * 1.5} />
+                  <ProgressBar scale={1} value={pct} />
                   <Text style={s.muted}>
-                    {pr.completed_tasks}/{pr.total_tasks} done · {pr.open_requests} open requests
-                    {pr.overdue_tasks ? ` · ${pr.overdue_tasks} overdue` : ''}
+                    {pr.done}/{pr.total} done · {pr.requests} open requests
+                    {pr.overdue ? ` · ${pr.overdue} overdue` : ''}
                   </Text>
                 </View>
               );

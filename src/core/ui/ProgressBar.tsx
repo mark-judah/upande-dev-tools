@@ -6,11 +6,13 @@ type Props = {
   value: number;
   exceeded?: boolean;
   height?: number;
+  /** The value that fills the track. Default 1.5 (packhouse: 1 = target, the track holds 150%). Pass 1 for a plain 0..1 progress bar. */
+  scale?: number;
 };
 
-export function ProgressBar({ value, exceeded, height = 6 }: Props) {
-  const clamped = Math.max(0, Math.min(value, 1.5));
-  const widthPct = (clamped / 1.5) * 100;
+export function ProgressBar({ value, exceeded, height = 6, scale = 1.5 }: Props) {
+  const clamped = Math.max(0, Math.min(value, scale));
+  const widthPct = (clamped / scale) * 100;
   return (
     <View style={[s.track, { height, borderRadius: height / 2 }]}>
       <View

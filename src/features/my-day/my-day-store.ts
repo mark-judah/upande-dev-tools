@@ -3,11 +3,16 @@ import { call } from '@/core/api/call';
 import { mapAxiosError } from '@/core/api/client';
 import { TASK_STAGE, type Meeting, type Stage, type TaskRow } from '@/features/shared/types';
 
-type Day = { date: string; tasks: TaskRow[]; meetings: Meeting[] };
+/** `requests.get_my_backlog`: every open task assigned to me, soonest deadline first. */
+export type MyBacklog = {
+  tasks: TaskRow[];
+  meetings: Meeting[];
+  requests: { name: string; title: string; request_type: string; workflow_state: string; priority?: string | null }[];
+  progress: { completed_this_week: number; completed_prev_week: number };
+};
 
 type State = {
-  day: Day | null;
-  backlog: TaskRow[];
+  data: MyBacklog | null;
   loading: boolean;
   error: string | null;
   load: () => Promise<void>;
@@ -17,9 +22,17 @@ type State = {
 
 let seq = 0;
 
+const STATUS: Record<Stage, string> = {
+  Triage: 'Open',
+  Todo: 'Open',
+  'In Progress': 'Working',
+  'In Review': 'Pending Review',
+  Blocked: 'Pending Review',
+  Done: 'Completed',
+};
+
 export const useMyDay = create<State>((set, get) => ({
-  day: null,
-  backlog: [],
+  data: null,
   loading: false,
   error: null,
 
@@ -27,26 +40,34 @@ export const useMyDay = create<State>((set, get) => ({
     const mine = ++seq; // latest-wins: a slow older response never overwrites a newer one
     set({ loading: true, error: null });
     try {
-      const [day, backlog] = await Promise.all([
-        call<Day>('requests.get_my_day', {}, true),
-        call<TaskRow[]>('requests.get_developer_backlog', {}, true),
-      ]);
-      if (mine === seq) set({ day, backlog, loading: false });
+      const data = await call<MyBacklog>('requests.get_my_backlog', {}, true);
+      if (mine === seq) set({ data, loading: false });
     } catch (e) {
       if (mine === seq) set({ loading: false, error: mapAxiosError(e).message });
     }
   },
 
   moveTask: async (name, stage) => {
-    const before = { day: get().day, backlog: get().backlog };
-    const status = stage === 'Done' ? 'Completed' : stage === 'In Review' ? 'Pending Review' : stage === 'In Progress' ? 'Working' : 'Open';
-    const patch = (rows: TaskRow[]) => rows.map((r) => (r.name === name ? { ...r, status } : r));
-    set((s) => ({ day: s.day ? { ...s.day, tasks: patch(s.day.tasks) } : s.day, backlog: patch(s.backlog) }));
+    const before = get().data;
+    if (before) {
+      const status = STATUS[stage];
+      set({
+        data: {
+          ...before,
+          // A closed task leaves the open list; the weekly count goes up with it.
+          tasks: stage === 'Done' ? before.tasks.filter((t) => t.name !== name) : before.tasks.map((t) => (t.name === name ? { ...t, status } : t)),
+          progress:
+            stage === 'Done'
+              ? { ...before.progress, completed_this_week: before.progress.completed_this_week + 1 }
+              : before.progress,
+        },
+      });
+    }
     try {
       await call('board.set_stage', { doctype: 'Task', name, stage });
       return stage;
     } catch {
-      set(before);
+      set({ data: before });
       return null;
     }
   },
@@ -58,4 +79,9 @@ export function stageOf(t: TaskRow): Stage {
 
 export function isOverdue(t: TaskRow, today: string): boolean {
   return !!t.exp_end_date && t.exp_end_date < today && stageOf(t) !== 'Done';
+}
+
+/** What belongs on today's plate: due today or earlier, or already being worked on. */
+export function isToday(t: TaskRow, today: string): boolean {
+  return stageOf(t) === 'In Progress' || (!!t.exp_end_date && t.exp_end_date <= today);
 }

@@ -48,7 +48,12 @@ export const authRepository = {
 
     if (res.status === 200) {
       const cookie = extractSidCookie(res.setCookie);
-      if (!cookie) return { ok: false, error: 'Login succeeded but no session cookie was returned' };
+      if (!cookie) {
+        return {
+          ok: false,
+          error: `${fullUrl} did not answer like a Frappe server with Upande Dev Tools installed. Check the address and port (the Frappe web port, not Metro's 8081).`,
+        };
+      }
       let fullName = res.body.full_name || email;
       // Another server's leftovers (station, roles, …) go before this one's are written.
       const switched = await isOtherServer(fullUrl);

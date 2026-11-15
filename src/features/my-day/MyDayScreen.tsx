@@ -13,12 +13,11 @@ import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { NEXT_STAGE } from '@/features/shared/types';
 import { useAchievements } from '@/features/gamification/achievements-store';
 import { STREAK_MILESTONES } from '@/features/gamification/achievements-api';
-import { isOverdue, stageOf, useMyDay } from './my-day-store';
+import { isOverdue, isToday, stageOf, useMyDay } from './my-day-store';
 import { format } from 'date-fns';
 
 export function MyDayScreen() {
-  const day = useMyDay((s) => s.day);
-  const backlog = useMyDay((s) => s.backlog);
+  const data = useMyDay((s) => s.data);
   const loading = useMyDay((s) => s.loading);
   const error = useMyDay((s) => s.error);
   const load = useMyDay((s) => s.load);
@@ -30,11 +29,14 @@ export function MyDayScreen() {
     load();
   }, [load]);
 
-  const today = day?.date ?? format(new Date(), 'yyyy-MM-dd');
-  const planned = day?.tasks ?? [];
-  const done = planned.filter((t) => stageOf(t) === 'Done').length;
-  const overdue = backlog.filter((t) => isOverdue(t, today));
-  const inReview = backlog.filter((t) => stageOf(t) === 'In Review').length;
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const tasks = data?.tasks ?? [];
+  const plate = tasks.filter((t) => isToday(t, today));
+  const upNext = tasks.filter((t) => !isToday(t, today)).slice(0, 8);
+  const overdue = tasks.filter((t) => isOverdue(t, today));
+  const inReview = tasks.filter((t) => stageOf(t) === 'In Review').length;
+  const doneWeek = data?.progress.completed_this_week ?? 0;
+  const donePrev = data?.progress.completed_prev_week ?? 0;
   const firstName = (fullName || '').split(' ')[0] || 'there';
 
   const advance = useCallback(
@@ -58,25 +60,45 @@ export function MyDayScreen() {
     [moveTask, toast],
   );
 
+  const renderTask = (t: (typeof tasks)[number]) => {
+    const stage = stageOf(t);
+    const next = NEXT_STAGE[stage];
+    const late = isOverdue(t, today);
+    return (
+      <View key={t.name} style={s.row}>
+        <Pressable onPress={() => advance(t.name, stage)} disabled={!next} hitSlop={8} accessibilityLabel={next ? `Move to ${next}` : 'Done'}>
+          <Ionicons name={stage === 'Todo' ? 'ellipse-outline' : 'play-circle-outline'} size={26} color={COLORS.text} />
+        </Pressable>
+        <Pressable style={{ flex: 1 }} onPress={() => router.push(`/task/${t.name}` as never)}>
+          <Text style={s.rowText} numberOfLines={2}>{t.subject}</Text>
+          <Text style={[s.meta, late && { color: COLORS.danger }]}>
+            {stage}
+            {t.priority ? ` · ${t.priority}` : ''}
+            {t.exp_end_date ? ` · ${late ? 'was due' : 'due'} ${t.exp_end_date}` : ''}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  };
+
   return (
-    <Screen title="My Day" onRefresh={load} error={!day ? error : null} onRetry={load}>
+    <Screen title="My Day" onRefresh={load} error={!data ? error : null} onRetry={load}>
       <Text style={s.hello}>Welcome back, {firstName}</Text>
       <Text style={s.caption}>{format(new Date(today), 'EEEE, d MMMM')}</Text>
 
-      {loading && !day ? (
+      {loading && !data ? (
         <Skeleton height={150} style={{ borderRadius: 24, marginBottom: spacing.md }} />
       ) : (
         <Pressable style={s.hero} onPress={() => router.push('/backlog')}>
           <Ionicons name="checkmark-done" size={120} color="rgba(255,255,255,0.06)" style={s.heroGhost} />
-          <Text style={s.chip}>TODAY</Text>
+          <Text style={s.chip}>ON YOUR PLATE TODAY</Text>
           <Text style={s.heroNum} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>
-            {done}
-            <Text style={s.heroOf}> / {planned.length}</Text>
+            {plate.length}
           </Text>
           <Text style={s.heroSub}>
-            {planned.length === 0 ? 'Nothing planned. Capture something or pick from the backlog.' : done === planned.length ? 'All done. Nice work.' : `${planned.length - done} left today`}
+            {plate.length === 0 ? 'Nothing due. Capture something or pick from the backlog.' : `${doneWeek} closed this week${donePrev ? ` · ${donePrev} last week` : ''}`}
           </Text>
-          <ProgressBar value={planned.length ? done / planned.length : 0} />
+          <ProgressBar scale={1} value={donePrev ? doneWeek / donePrev : doneWeek > 0 ? 1 : 0} />
         </Pressable>
       )}
 
@@ -85,9 +107,9 @@ export function MyDayScreen() {
         <Tile label="IN REVIEW" value={inReview} onPress={() => router.push('/backlog')} />
       </View>
 
-      {day && day.meetings.length > 0 ? (
-        <Card title="Meetings today">
-          {day.meetings.map((m) => (
+      {data && data.meetings.length > 0 ? (
+        <Card title="Meetings">
+          {data.meetings.map((m) => (
             <View key={m.name} style={s.row}>
               <Text style={s.time}>{format(new Date(m.starts_on.replace(' ', 'T')), 'HH:mm')}</Text>
               <Text style={s.rowText} numberOfLines={1}>{m.subject}</Text>
@@ -97,35 +119,10 @@ export function MyDayScreen() {
       ) : null}
 
       <Card title="Today's tasks">
-        {planned.length === 0 ? (
-          <Text style={s.empty}>Tap + to capture a note, and it lands here.</Text>
-        ) : (
-          planned.map((t) => {
-            const stage = stageOf(t);
-            const next = NEXT_STAGE[stage];
-            return (
-              <View key={t.name} style={s.row}>
-                <Pressable
-                  onPress={() => advance(t.name, stage)}
-                  disabled={!next}
-                  hitSlop={8}
-                  accessibilityLabel={next ? `Move to ${next}` : 'Done'}
-                >
-                  <Ionicons
-                    name={stage === 'Done' ? 'checkmark-circle' : stage === 'Todo' ? 'ellipse-outline' : 'play-circle-outline'}
-                    size={26}
-                    color={stage === 'Done' ? COLORS.success : COLORS.text}
-                  />
-                </Pressable>
-                <Pressable style={{ flex: 1 }} onPress={() => router.push(`/task/${t.name}` as never)}>
-                  <Text style={[s.rowText, stage === 'Done' && s.struck]} numberOfLines={2}>{t.subject}</Text>
-                  <Text style={s.meta}>{stage}{t.priority ? ` · ${t.priority}` : ''}</Text>
-                </Pressable>
-              </View>
-            );
-          })
-        )}
+        {plate.length === 0 ? <Text style={s.empty}>Nothing due. Tap + to capture something.</Text> : plate.map(renderTask)}
       </Card>
+
+      {upNext.length > 0 ? <Card title="Up next">{upNext.map(renderTask)}</Card> : null}
     </Screen>
   );
 }

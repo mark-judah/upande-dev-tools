@@ -99,7 +99,7 @@ export function CaptureHost() {
         <LabeledInput label="Details (optional)" value={details} onChangeText={setDetails} multiline />
         {type === 'Note' ? (
           <View style={s.row}>
-            <Text style={s.rowText}>Add to my day</Text>
+            <Text style={s.rowText}>Make it a task now</Text>
             <Switch value={today} onValueChange={setToday} trackColor={{ true: COLORS.primary }} />
           </View>
         ) : null}
