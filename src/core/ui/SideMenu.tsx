@@ -1,0 +1,279 @@
+import React, { useEffect, useState } from 'react';
+import {
+  Animated,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { useAuthStore } from '@/core/auth/store';
+import { storage, StorageKeys } from '@/core/storage';
+import { useDrawerItems } from './drawer-items-context';
+import { APP_NAME, APP_VERSION } from '@/core/version';
+import { ServerDialog } from '@/core/auth/ServerSection';
+
+type IconName = keyof typeof Ionicons.glyphMap;
+
+export function SideMenu({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const instanceUrl = useAuthStore((s) => s.instanceUrl);
+  const logout = useAuthStore((s) => s.logout);
+  const storeFullName = useAuthStore((s) => s.fullName);
+  const storeEmail = useAuthStore((s) => s.email);
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const drawerWidth = Math.min(Math.max(screenWidth * 0.8, 240), 320);
+  const slide = useState(() => new Animated.Value(-drawerWidth))[0];
+
+  // Fallback for legacy paths that mount SideMenu before the auth store hydrates.
+  const [stored, setStored] = useState<{ fullName: string; email: string }>({ fullName: '', email: '' });
+  const fullName = storeFullName || stored.fullName;
+  const email = storeEmail || stored.email;
+
+  useEffect(() => {
+    if (!visible) return;
+    // Fallback to AsyncStorage when auth store hasn't been populated yet
+    // (legacy paths that mounted SideMenu before hydrate finished).
+    if (storeFullName && storeEmail) return;
+    Promise.all([storage.get(StorageKeys.fullName), storage.get(StorageKeys.emailBackup)]).then(
+      ([n, e]) => setStored({ fullName: n || '', email: e || '' }),
+    );
+  }, [visible, storeFullName, storeEmail]);
+
+  useEffect(() => {
+    if (visible) {
+      slide.setValue(-drawerWidth);
+      Animated.timing(slide, { toValue: 0, duration: 250, useNativeDriver: true }).start();
+    } else {
+      slide.setValue(-drawerWidth);
+    }
+  }, [visible, drawerWidth, slide]);
+
+  const closeWithAnim = (afterClose?: () => void) => {
+    Animated.timing(slide, { toValue: -drawerWidth, duration: 200, useNativeDriver: true })
+      .start(() => {
+        onClose();
+        afterClose?.();
+      });
+  };
+
+  const items = useDrawerItems();
+
+  // Outside the drawer's Modal, so it stays open once the drawer has closed.
+  const [serverDialog, setServerDialog] = useState(false);
+  const onAvatarLongPress = () => closeWithAnim(() => setServerDialog(true));
+
+  const go = (href: string) => {
+    closeWithAnim();
+    setTimeout(() => router.replace(href as never), 220);
+  };
+
+  const onSettings = () => {
+    closeWithAnim();
+    setTimeout(() => router.push('/settings' as never), 220);
+  };
+
+  const onLogout = async () => {
+    closeWithAnim();
+    setTimeout(async () => {
+      await logout();
+      router.replace('/login');
+    }, 220);
+  };
+
+  const initials =
+    (fullName || email || '?')
+      .split(' ')
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase() || '?';
+
+  return (
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="none"
+        onRequestClose={() => closeWithAnim()}
+        statusBarTranslucent
+        navigationBarTranslucent
+        hardwareAccelerated
+      >
+        <View style={s.overlay}>
+          <Pressable style={s.backdrop} onPress={() => closeWithAnim()} />
+          <Animated.View
+            style={[
+              s.drawer,
+              { width: drawerWidth, transform: [{ translateX: slide }] },
+            ]}
+          >
+            <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'bottom']}>
+              <ScrollView
+                contentContainerStyle={[s.scroll, { paddingTop: insets.top > 0 ? spacing.md : spacing.lg }]}
+                bounces={false}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={s.header}>
+                  <Pressable style={s.avatar} onLongPress={onAvatarLongPress} delayLongPress={2000}>
+                    <Text style={s.avatarText}>{initials}</Text>
+                  </Pressable>
+                  <Text style={s.name} numberOfLines={1}>
+                    {fullName || email || 'User'}
+                  </Text>
+                  {email ? <Text style={s.email} numberOfLines={1}>{email}</Text> : null}
+                  {instanceUrl ? (
+                    <Text style={s.meta} numberOfLines={1}>
+                      {instanceUrl.replace(/^https?:\/\//, '')}
+                    </Text>
+                  ) : null}
+                </View>
+
+                <View style={s.nav}>
+                  {items.length === 0 ? (
+                    <Text style={s.empty}>No screens configured.</Text>
+                  ) : (
+                    items.map((item) => (
+                      <Pressable
+                        key={item.href}
+                        style={({ pressed }) => [s.navItem, pressed && s.navItemPressed]}
+                        onPress={() => go(item.href)}
+                      >
+                        <Ionicons
+                          name={(item.icon as IconName) ?? 'apps-outline'}
+                          size={20}
+                          color={COLORS.textSecondary}
+                        />
+                        <Text style={s.navLabel}>{item.label}</Text>
+                      </Pressable>
+                    ))
+                  )}
+                </View>
+
+                <View style={s.footer}>
+                  <Pressable style={s.footerRow} onPress={onSettings} hitSlop={4}>
+                    <View style={[s.badge, { backgroundColor: '#EEF2FF' }]}>
+                      <Ionicons name="cog-outline" size={15} color="#6366F1" />
+                    </View>
+                    <Text style={s.footerText}>Settings</Text>
+                  </Pressable>
+                  <Pressable style={s.footerRow} onPress={onLogout} hitSlop={4}>
+                    <View style={[s.badge, { backgroundColor: '#FEF2F2' }]}>
+                      <Ionicons name="log-out-outline" size={15} color={COLORS.danger} />
+                    </View>
+                    <Text style={[s.footerText, { color: COLORS.danger }]}>Sign Out</Text>
+                  </Pressable>
+                  <Text style={s.version}>{APP_NAME} v{APP_VERSION}</Text>
+                </View>
+              </ScrollView>
+            </SafeAreaView>
+          </Animated.View>
+        </View>
+      </Modal>
+      <ServerDialog visible={serverDialog} onClose={() => setServerDialog(false)} />
+    </>
+  );
+}
+
+const s = StyleSheet.create({
+  overlay: { flex: 1 },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: COLORS.overlay },
+  drawer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: COLORS.surface,
+    elevation: 24,
+    zIndex: 9999,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+  },
+  scroll: { flexGrow: 1, paddingHorizontal: spacing.lg },
+  header: {
+    paddingVertical: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+    marginBottom: spacing.xs,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  avatarText: { fontFamily: fontFamily.bold, fontSize: fontSize.md, color: COLORS.textOnPrimary },
+  name: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.text },
+  email: { fontFamily: fontFamily.regular, fontSize: fontSize.xs, color: COLORS.textSecondary, marginTop: 2 },
+  meta: { fontFamily: fontFamily.regular, fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
+
+  nav: { paddingTop: spacing.xs, paddingBottom: spacing.sm },
+  navItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  navItemPressed: { backgroundColor: COLORS.surfaceAlt },
+  navLabel: { fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: COLORS.text, flex: 1 },
+  navLabelMuted: { color: COLORS.textMuted },
+  comingSoonBadge: {
+    fontFamily: fontFamily.medium,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  empty: { paddingHorizontal: spacing.sm, fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textMuted },
+
+  footer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  badge: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  footerText: { fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: COLORS.text, flex: 1 },
+  version: {
+    fontFamily: fontFamily.regular,
+    fontSize: fontSize.xs,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+});

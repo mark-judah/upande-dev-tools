@@ -1,0 +1,50 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const StorageKeys = {
+  cookie: 'cookie',
+  instanceUrl: 'instanceurl',
+  instanceUrlBackup: 'instanceurl_backup',
+  emailBackup: 'email_backup',
+  fullName: 'fullname',
+  userStation: 'userStation',
+  versionLastReportedOn: 'versionLastReportedOn',
+  userRoles: 'userRoles',
+  biometricEnabled: 'biometric_enabled',
+  // Password is saved on every successful password login so the biometric
+  // flow can re-authenticate by feeding it back to the same login endpoint.
+  // Stored in AsyncStorage (not encrypted); access is gated by the OS
+  // biometric prompt. On a rooted device this is readable — accept that
+  // trade-off or migrate to expo-secure-store with a native rebuild.
+  passwordBackup: 'password_backup',
+  boxLabelsHistory: 'box_labels_history',
+  // Instances this device has signed in to, newest first, for the login
+  // screen's picker. Survives sign-out and "Forget this device".
+  knownInstances: 'known_instances',
+  // Last GitHub Releases check for a newer APK (see src/core/updates).
+  apkUpdateCheck: 'apk_update_check',
+  /** Dispatch: the location last picked (Loading Plan > Location, e.g. Ravine / Karen). */
+  dispatchLocation: 'dispatch_location',
+  /** Dispatch: seal numbers typed per truck and delivery date (the last week's). */
+  dispatchSeals: 'dispatch_seals',
+  // The server (instanceKey) a switched sign-in landed on, for the relaunch
+  // that follows: the biometric lock is skipped once, on that server only.
+  instanceSwitched: 'instance_switched',
+  /** Captures made offline, waiting to be sent. */
+  captureQueue: 'capture_queue',
+  /** Last known gamification totals, shown before the server answers. */
+  achievementsCache: 'achievements_cache',
+} as const;
+
+export const storage = {
+  get: (key: string): Promise<string | null> => AsyncStorage.getItem(key),
+  set: (key: string, value: string): Promise<void> => AsyncStorage.setItem(key, value),
+  remove: (key: string): Promise<void> => AsyncStorage.removeItem(key),
+  async clearExcept(keep: string[]): Promise<void> {
+    const allKeys = Object.values(StorageKeys);
+    await Promise.all(
+      allKeys
+        .filter((k) => !keep.includes(k))
+        .map((k) => AsyncStorage.removeItem(k)),
+    );
+  },
+};

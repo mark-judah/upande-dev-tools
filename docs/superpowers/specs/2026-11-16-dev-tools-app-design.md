@@ -28,8 +28,7 @@ the backlog stays current as a side effect.
 
 ## Non-goals / anti-goals
 
-- Not a requester/customer app in v1. Audience is Dev Team, Projects Manager, System Manager. (My call: the
-  question was left open; requester-facing flows can reuse the same services later.)
+- Not a requester/customer app in v1. Audience is Dev Team, Projects Manager, System Manager. (Confirmed by the user: "only devs". Requester-facing flows are out of scope.)
 - No iOS support for kit features (the kit is Android only). The code stays cross-platform where free.
 - No new gamification doctype in v1; points are computed. No punitive mechanics (no shaming leaderboards
   for low scores; leaderboard shows top contributors only).
