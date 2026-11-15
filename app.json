@@ -21,9 +21,12 @@
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
-      ]
+      ],
+      "versionCode": 5000
     },
     "plugins": [
+      "./plugins/withReleaseSigning",
+      "./plugins/withBuildTuning",
       "expo-router",
       "expo-secure-store",
       "expo-audio",
@@ -48,11 +51,47 @@
           "icon": "./assets/images/upande_logo.png",
           "color": "#171717"
         }
-      ]
+      ],
+      "@upande/mobile-kit",
+      "expo-localization",
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "otaBaseUrl": "https://mark-judah.github.io/upande-dev-tools/ota",
+      "mobileKit": {
+        "_help": "All of the kit's settings for this app live here. Edit the lists under \"release\"; the kit manages nativeBaseline and apkTag itself.",
+        "sites": {
+          "production": "https://kaitet-group.upande.com",
+          "development": "http://192.168.8.4"
+        },
+        "versionCodeBase": 0,
+        "runtimeMajorBase": 0,
+        "release": {
+          "_help": "Decides APK or OTA for you. \"apk\": folders/files (globs) that need a new APK when they change, e.g. \"modules/**\". \"ota\": folders/files that are safe over the air, e.g. \"assets/fonts/**\". Built in: app/**, src/**, tests, docs, *.md are OTA; android/**, ios/**, patches/**, plugins/** are APK. A changed file in neither list builds an APK to be safe, and the release says which file to list.",
+          "apk": [
+            "assets/images/**"
+          ],
+          "ota": [
+            "assets/**",
+            "docs/**",
+            ".vscode/**",
+            "*.config.js",
+            "tsconfig.json",
+            "expo-env.d.ts"
+          ]
+        }
+      }
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://kaitet-group.upande.com/api/method/upande_mobile.api.ota.manifest?app=Upande%20Dev%20Tools"
+    },
+    "runtimeVersion": "1.0"
   }
 }

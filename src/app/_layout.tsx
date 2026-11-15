@@ -1,3 +1,4 @@
+import '../../src/mobile-kit';
 import { useEffect, useMemo } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -16,6 +17,7 @@ import { useNetworkStore } from '@/core/network/store';
 import { drawerFor } from '@/navigation';
 import { NotificationsHost } from '@/features/notifications/NotificationsHost';
 import { CaptureHost } from '@/features/capture/CaptureHost';
+import { MobileKitProvider } from '@upande/mobile-kit';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -67,6 +69,7 @@ export default function RootLayout() {
   if (!fontsLoaded || !hydrated) return null;
 
   return (
+    <MobileKitProvider>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <DrawerItemsProvider items={items}>
@@ -83,5 +86,6 @@ export default function RootLayout() {
         </DrawerItemsProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+    </MobileKitProvider>
   );
 }
