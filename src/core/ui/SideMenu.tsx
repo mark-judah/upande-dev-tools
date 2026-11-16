@@ -27,17 +27,14 @@ export function SideMenu() {
   const drawerWidth = Math.min(Math.max(width * 0.82, 260), 340);
 
   const [slide] = useState(() => new Animated.Value(-340));
-  const [mounted, setMounted] = useState(false);
   const [serverOpen, setServerOpen] = useState(false);
 
+  // Slide in on open. Closing is a plain fade of the Modal (no state juggling to keep it mounted).
   useEffect(() => {
-    if (open) {
-      setMounted(true);
-      Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start();
-    } else if (mounted) {
-      Animated.timing(slide, { toValue: -drawerWidth, duration: 180, useNativeDriver: true }).start(() => setMounted(false));
-    }
-  }, [open, mounted, slide, drawerWidth]);
+    if (!open) return;
+    slide.setValue(-drawerWidth);
+    Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start();
+  }, [open, slide, drawerWidth]);
 
   const go = (href: string) => {
     setOpen(false);
@@ -66,7 +63,7 @@ export function SideMenu() {
 
   return (
     <>
-      <Modal visible={mounted} transparent animationType="none" onRequestClose={() => setOpen(false)} statusBarTranslucent>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)} statusBarTranslucent>
         <View style={s.overlay}>
           <Pressable style={s.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close menu" />
           <Animated.View style={[s.panel, { width: drawerWidth, transform: [{ translateX: slide }] }]}>
