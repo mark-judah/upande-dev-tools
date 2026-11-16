@@ -1,15 +1,23 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Button } from '@/core/ui/Button';
 import { ItemRow, RowSkeletons } from './ItemRow';
-import { bucketOf, BUCKETS, itemKey, type Bucket, type Item } from './model';
+import type { Stage } from '@/features/shared/types';
+import { groupItems, itemKey, type GroupBy, type Item } from './model';
 
-type Section = { key: Bucket; title: string; count: number; data: Item[] };
+type Section = { key: string; title: string; count: number; data: Item[]; hot?: boolean };
 
 export function ListView({
   items,
+  groupBy,
+  header,
+  selecting,
+  selected,
+  onSelect,
+  onMove,
+  bottomPad = 120,
   loading,
   collapsed,
   onToggle,
@@ -23,9 +31,16 @@ export function ListView({
   onClear,
 }: {
   items: Item[];
+  groupBy: GroupBy;
+  header?: ReactNode;
+  selecting: boolean;
+  selected: Set<string>;
+  onSelect: (i: Item) => void;
+  onMove: (i: Item, to: Stage) => void;
+  bottomPad?: number;
   loading: boolean;
   collapsed: string[];
-  onToggle: (key: Bucket) => void;
+  onToggle: (key: string) => void;
   projectName: (i: Item) => string | undefined;
   onOpen: (i: Item) => void;
   onAdvance: (i: Item) => void;
@@ -35,16 +50,17 @@ export function ListView({
   hasFilters: boolean;
   onClear: () => void;
 }) {
-  const sections = useMemo<Section[]>(() => {
-    const by: Record<string, Item[]> = {};
-    for (const i of items) (by[bucketOf(i)] ??= []).push(i);
-    return BUCKETS.filter((b) => by[b.key]?.length).map((b) => ({
-      key: b.key,
-      title: b.label,
-      count: by[b.key].length,
-      data: collapsed.includes(b.key) ? [] : by[b.key],
-    }));
-  }, [items, collapsed]);
+  const sections = useMemo<Section[]>(
+    () =>
+      groupItems(items, groupBy, projectName).map((g) => ({
+        key: g.key,
+        title: g.title,
+        count: g.count,
+        hot: g.hot,
+        data: collapsed.includes(g.key) ? [] : g.items,
+      })),
+    [items, groupBy, collapsed, projectName],
+  );
 
   if (loading) return <RowSkeletons />;
 
@@ -58,7 +74,9 @@ export function ListView({
       windowSize={7}
       onRefresh={onRefresh}
       refreshing={refreshing}
-      contentContainerStyle={{ paddingBottom: 120 }}
+      contentContainerStyle={{ paddingBottom: bottomPad }}
+      ListHeaderComponent={header as never}
+      extraData={selected}
       renderSectionHeader={({ section }) => {
         const open = !collapsed.includes(section.key);
         return (
@@ -70,7 +88,7 @@ export function ListView({
             accessibilityState={{ expanded: open }}
           >
             <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={16} color={COLORS.textMuted} />
-            <Text style={[s.headTitle, section.key === 'overdue' && { color: COLORS.danger }]}>{section.title}</Text>
+            <Text style={[s.headTitle, section.hot && { color: COLORS.danger }]}>{section.title}</Text>
             <View style={s.badge}>
               <Text style={s.badgeText}>{section.count}</Text>
             </View>
@@ -78,14 +96,24 @@ export function ListView({
         );
       }}
       renderItem={({ item }) => (
-        <ItemRow item={item} projectName={projectName(item)} onOpen={onOpen} onAdvance={onAdvance} onMenu={onMenu} />
+        <ItemRow
+          item={item}
+          projectName={projectName(item)}
+          onOpen={onOpen}
+          onAdvance={onAdvance}
+          onMenu={onMenu}
+          onMove={onMove}
+          selecting={selecting}
+          selected={selected.has(itemKey(item))}
+          onSelect={onSelect}
+        />
       )}
       ListEmptyComponent={
         <View style={s.empty}>
           <Ionicons name={hasFilters ? 'funnel-outline' : 'checkmark-done-outline'} size={40} color={COLORS.textMuted} />
           <Text style={s.emptyTitle}>{hasFilters ? 'No matches' : 'All clear'}</Text>
           <Text style={s.emptyText}>
-            {hasFilters ? 'Nothing fits these filters or that search.' : 'There is no open work in the backlog.'}
+            {hasFilters ? 'Nothing fits this scope, these filters or that search.' : 'There is no open work in the backlog.'}
           </Text>
           {hasFilters ? <Button label="Clear filters" variant="outline" onPress={onClear} style={{ alignSelf: 'center' }} /> : null}
         </View>

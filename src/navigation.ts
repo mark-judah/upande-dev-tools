@@ -18,6 +18,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Decide',
     items: [
       { label: 'Review queue', href: '/review-queue', icon: 'checkmark-done-outline', roles: PM },
+      { label: 'Projects', href: '/projects', icon: 'folder-open-outline', roles: PM },
       { label: 'PM dashboard', href: '/pm-dashboard', icon: 'stats-chart-outline', roles: PM },
     ],
   },
@@ -27,6 +28,18 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Repos', href: '/repos', icon: 'git-branch-outline', roles: DEV },
       { label: 'Activity', href: '/activity', icon: 'pulse-outline', roles: DEV },
       { label: 'Snapshots', href: '/snapshots', icon: 'camera-outline', roles: DEV },
+    ],
+  },
+  {
+    title: 'IT workstation',
+    items: [
+      { label: 'IT home', href: '/it', icon: 'pulse', roles: DEV },
+      { label: 'Crashes', href: '/it/crashes', icon: 'bug-outline', roles: DEV },
+      { label: 'Devices', href: '/it/devices', icon: 'phone-portrait-outline', roles: DEV },
+      { label: 'Support inbox', href: '/it/support', icon: 'chatbubbles-outline', roles: DEV },
+      { label: 'Apps and releases', href: '/it/apps', icon: 'apps-outline', roles: DEV },
+      { label: 'People and access', href: '/it/people', icon: 'people-outline', roles: DEV },
+      { label: 'Server pulse', href: '/it/server', icon: 'hardware-chip-outline', roles: DEV },
     ],
   },
   {

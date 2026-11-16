@@ -15,6 +15,7 @@ import {
 import { todayKey } from '@/core/date';
 import { Segmented } from '@/core/ui/Segmented';
 import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import type { Stage } from '@/features/shared/types';
 import { ItemRow } from './ItemRow';
 import { itemKey, priorityColor, type Item } from './model';
 
@@ -29,6 +30,7 @@ export function CalendarView({
   projectName,
   onOpen,
   onAdvance,
+  onMove,
   onMenu,
   onRefresh,
   refreshing,
@@ -37,6 +39,7 @@ export function CalendarView({
   projectName: (i: Item) => string | undefined;
   onOpen: (i: Item) => void;
   onAdvance: (i: Item) => void;
+  onMove: (i: Item, to: Stage) => void;
   onMenu: (i: Item) => void;
   onRefresh: () => void;
   refreshing: boolean;
@@ -160,7 +163,7 @@ export function CalendarView({
       keyExtractor={itemKey}
       ListHeaderComponent={header}
       renderItem={({ item }) => (
-        <ItemRow item={item} projectName={projectName(item)} onOpen={onOpen} onAdvance={onAdvance} onMenu={onMenu} />
+        <ItemRow item={item} projectName={projectName(item)} onOpen={onOpen} onAdvance={onAdvance} onMenu={onMenu} onMove={onMove} />
       )}
       ListEmptyComponent={<Text style={s.empty}>Nothing due on this day.</Text>}
       ListFooterComponent={

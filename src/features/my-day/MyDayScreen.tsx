@@ -18,6 +18,8 @@ import { useAchievements } from '@/features/gamification/achievements-store';
 import { BadgeScroller, Collapsible, MiniLeaderboard, ProgressCard, UnlockCard, useBadgeUnlocks } from '@/features/gamification/achievements-ui';
 import { useCaptureUi } from '@/features/capture/capture-ui';
 import { useTaskActions } from '@/features/tasks/useTaskActions';
+import { SwipeRow } from '@/core/ui/SwipeRow';
+import { SwipeHint } from '@/features/backlog/SwipeHint';
 import { isOverdue, stageOf, useMyDay } from './my-day-store';
 
 const PRIORITY_RANK: Record<string, number> = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
@@ -39,7 +41,7 @@ export function MyDayScreen() {
   const email = useAuthStore((s) => s.email);
   const { unlocked, dismiss: dismissUnlock } = useBadgeUnlocks(stats);
   const setCaptureOpen = useCaptureUi((s) => s.setOpen);
-  const { advance } = useTaskActions();
+  const { advance, setStage } = useTaskActions();
 
   // Refresh whenever the tab is shown again (after closing a task elsewhere, say), but not more than every 30 s.
   const lastLoad = useRef(0);
@@ -104,8 +106,14 @@ export function MyDayScreen() {
     const next = NEXT_STAGE[stage];
     const due = relativeDue(t.exp_end_date);
     const stageLabel = stage === 'In Progress' ? 'In progress' : stage === 'In Review' ? 'In review' : null;
+    const done = { label: 'Done', icon: 'checkmark-circle' as const, color: '#15803D', onTrigger: () => setStage(t.name, stage, 'Done') };
+    const left =
+      stage === 'In Progress'
+        ? { label: 'Back to todo', icon: 'arrow-undo' as const, color: '#525252', onTrigger: () => setStage(t.name, stage, 'Todo') }
+        : { label: 'In progress', icon: 'play' as const, color: '#2563EB', onTrigger: () => setStage(t.name, stage, 'In Progress') };
     return (
-      <View key={t.name} style={[s.task, !last && s.taskDivider]}>
+      <SwipeRow key={t.name} swipeRight={done} swipeLeft={left}>
+      <View style={[s.task, !last && s.taskDivider]}>
         {/* Two sibling buttons (not nested): the circle moves the task forward, the text opens it. */}
         <Pressable
           onPress={() => advance(t.name, stage)}
@@ -133,6 +141,7 @@ export function MyDayScreen() {
           </View>
         </Pressable>
       </View>
+      </SwipeRow>
     );
   };
 
@@ -207,6 +216,8 @@ export function MyDayScreen() {
             </Card>
           ) : null}
 
+          {buckets.length ? <SwipeHint style={{ marginBottom: spacing.md }} /> : null}
+
           {buckets.map((b) => (
             <Card key={b.key} title={`${b.title} (${b.tasks.length})`}>
               {b.tasks.slice(0, SHOW).map((t, i, arr) => renderTask(t, i === arr.length - 1 && b.tasks.length <= SHOW))}
@@ -259,7 +270,7 @@ const s = StyleSheet.create({
   tile: { flex: 1, minHeight: 64, backgroundColor: COLORS.text, borderRadius: 20, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'space-between' },
   tileHot: { backgroundColor: '#3B0A0A' },
   tileNum: { fontFamily: fontFamily.bold, fontSize: 24, color: '#fff' },
-  task: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 64 },
+  task: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 64, backgroundColor: COLORS.surface },
   taskDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border },
   taskBody: { flex: 1, paddingVertical: spacing.sm, gap: 4 },
   taskTitle: { fontFamily: fontFamily.medium, fontSize: fontSize.md, color: COLORS.text },

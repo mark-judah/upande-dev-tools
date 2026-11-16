@@ -4,15 +4,20 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/core/auth/store';
 import { Screen } from '@/core/ui/Screen';
+import { Row } from '@/core/ui/Row';
+import { BottomSheet } from '@/core/ui/Dialog';
 import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { NEXT_STAGE, type Stage } from '@/features/shared/types';
+import { BulkBar } from './BulkBar';
+import { GroupBar, QuickViews, ScopeChip, StatsStrip, type Stat } from './Overview';
+import { SwipeHint } from './SwipeHint';
 import { BoardView } from './BoardView';
 import { CalendarView } from './CalendarView';
 import { FilterSheet } from './FilterSheet';
 import { RowSkeletons } from './ItemRow';
 import { ListView } from './ListView';
 import { MoveSheet, openItem } from './MoveSheet';
-import { applyFilters, DUE_LABEL, EMPTY_FILTERS, filterCount, type Bucket, type Item, type ViewMode } from './model';
+import { applyFilters, DUE_LABEL, EMPTY_FILTERS, filterCount, itemKey, NO_LENS, QUICK_VIEWS, SCOPES, selectable, type Item, type Lens, type Scope, type ViewMode } from './model';
 import { useBacklogData, usePrefs } from './useBacklog';
 
 const VIEWS: { value: ViewMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -23,39 +28,74 @@ const VIEWS: { value: ViewMode; label: string; icon: keyof typeof Ionicons.glyph
 
 export function BacklogScreen() {
   const { prefs, update, ready } = usePrefs();
-  const { data, items, loading, error, refresh, projectNames, move } = useBacklogData();
+  const { data, items, loading, error, refresh, projectNames, move, bulk, progress, truncated, loadAll } = useBacklogData();
   const email = useAuthStore((st) => st.email);
   // Deep links from Today: /backlog?due=overdue|today|tomorrow|week|review&mine=1
   const params = useLocalSearchParams<{ due?: string; mine?: string }>();
-  const due = params.due;
-  const mineParam = params.mine === '1';
+  const [lens, setLens] = useState<Lens>(() => (params.due ? { due: params.due } : NO_LENS));
+  const [selectRaw, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [searchText, setSearchText] = useState('');
   const [search, setSearch] = useState('');
   const [sheet, setSheet] = useState(false);
+  const [scopeSheet, setScopeSheet] = useState(false);
   const [moving, setMoving] = useState<Item | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // A deep link (/backlog?due=overdue&mine=1) replaces the lens and, with mine=1, the scope.
+  const linkDue = params.due;
+  const linkMine = params.mine === '1';
+  const linkKey = `${linkDue ?? ''}|${linkMine ? 1 : 0}`;
+  const [seenLink, setSeenLink] = useState(linkKey);
+  if (seenLink !== linkKey) {
+    setSeenLink(linkKey);
+    setLens(linkDue ? { due: linkDue } : NO_LENS);
+  }
+  useEffect(() => {
+    if (ready && linkMine) update({ scope: 'mine' });
+  }, [linkKey, linkMine, ready, update]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchText), 250);
     return () => clearTimeout(t);
   }, [searchText]);
 
-  const { view, filters, collapsed } = prefs;
+  const { view, filters, collapsed, scope, groupBy } = prefs;
+  const selecting = selectRaw && view === 'list';
   const nFilters = filterCount(filters);
 
-  const base = useMemo(
-    () => ({ search, filters, email, due, mineParam, includeDone: false }),
-    [search, filters, email, due, mineParam],
-  );
+  const base = useMemo(() => ({ search, filters, email, scope, lens, includeDone: false }), [search, filters, email, scope, lens]);
   const listItems = useMemo(() => applyFilters(items, base), [items, base]);
   const boardItems = useMemo(() => applyFilters(items, { ...base, includeDone: true }), [items, base]);
-  const calItems = useMemo(() => listItems, [listItems]);
+  const calItems = listItems;
   const counts = {
     list: listItems.length,
     board: boardItems.length,
     calendar: calItems.filter((i) => i.end).length,
   };
+
+  // Overview numbers ignore search, filters and the lens so the tiles and chips always describe the whole scope.
+  const overview = useMemo(() => {
+    const plain = { search: '', filters: EMPTY_FILTERS, email, lens: NO_LENS, includeDone: false };
+    const scoped = (sc: Scope) => applyFilters(items, { ...plain, scope: sc });
+    const inScope = scoped(scope);
+    const by = (l: Lens, sc: Scope = scope) => applyFilters(items, { ...plain, scope: sc, lens: l }).length;
+    return {
+      scopes: { mine: scoped('mine').length, team: scoped('team').length, all: scoped('all').length } as Record<Scope, number>,
+      open: inScope.length,
+      overdue: by({ due: 'overdue' }),
+      unassigned: by({ unassigned: true }),
+      review: by({ due: 'review' }),
+      blocked: applyFilters(items, { ...plain, scope, filters: { ...EMPTY_FILTERS, stages: ['Blocked'] } }).length,
+      views: Object.fromEntries(
+        QUICK_VIEWS.map((q) => [
+          q.key,
+          applyFilters(items, { ...plain, scope: q.scope, lens: q.lens, filters: { ...EMPTY_FILTERS, stages: q.stages ?? [] } }).length,
+        ]),
+      ) as Record<string, number>,
+    };
+  }, [items, scope, email]);
 
   const projectName = useCallback(
     (i: Item) => (i.project ? projectNames[i.project] || i.project : undefined),
@@ -93,7 +133,7 @@ export function BacklogScreen() {
     [move],
   );
   const onToggle = useCallback(
-    (key: Bucket) => update({ collapsed: collapsed.includes(key) ? collapsed.filter((k) => k !== key) : [...collapsed, key] }),
+    (key: string) => update({ collapsed: collapsed.includes(key) ? collapsed.filter((k) => k !== key) : [...collapsed, key] }),
     [collapsed, update],
   );
   const onRefresh = useCallback(async () => {
@@ -104,25 +144,104 @@ export function BacklogScreen() {
       setRefreshing(false);
     }
   }, [refresh]);
+  const clearLink = useCallback(() => {
+    setLens(NO_LENS);
+    router.setParams({ due: undefined, mine: undefined });
+  }, []);
   const clearAll = useCallback(() => {
     update({ filters: EMPTY_FILTERS });
     setSearchText('');
     setSearch('');
-    router.setParams({ due: undefined, mine: undefined });
-  }, [update]);
+    clearLink();
+  }, [update, clearLink]);
+  const setScope = useCallback((sc: Scope) => update({ scope: sc }), [update]);
+  const pickView = useCallback(
+    (key: string) => {
+      const q = QUICK_VIEWS.find((x) => x.key === key);
+      if (!q) return;
+      update({ scope: q.scope, filters: { ...EMPTY_FILTERS, stages: q.stages ?? [] } });
+      setLens(q.lens);
+      setSearchText('');
+      router.setParams({ due: undefined, mine: undefined });
+    },
+    [update],
+  );
+  const tile = (l: Lens, stages: string[] = []) => {
+    update({ filters: { ...EMPTY_FILTERS, stages } });
+    setLens(l);
+  };
+  const lensKey = lens.unassigned ? 'unassigned' : lens.due ?? '';
+  const stats: Stat[] = [
+    { key: 'open', label: 'Open', value: overview.open, on: !lensKey && !filters.stages.length, onPress: () => tile(NO_LENS) },
+    { key: 'overdue', label: 'Overdue', value: overview.overdue, hot: overview.overdue > 0, on: lensKey === 'overdue', onPress: () => tile({ due: 'overdue' }) },
+    { key: 'unassigned', label: 'Unassigned', value: overview.unassigned, on: lensKey === 'unassigned', onPress: () => tile({ unassigned: true }) },
+    { key: 'review', label: 'In review', value: overview.review, on: lensKey === 'review', onPress: () => tile({ due: 'review' }) },
+    { key: 'blocked', label: 'Blocked', value: overview.blocked, on: filters.stages.length === 1 && filters.stages[0] === 'Blocked', onPress: () => tile(NO_LENS, ['Blocked']) },
+  ];
 
-  const hasFilters = nFilters > 0 || !!search || !!due || mineParam;
+  // Select mode: long-press a row, tap to add or remove, act on all of them from the bottom bar.
+  const exitSelect = useCallback(() => {
+    setSelecting(false);
+    setSelected(new Set());
+  }, []);
+  const onSelect = useCallback((i: Item) => {
+    if (!selectable(i)) return;
+    setSelecting(true);
+    setSelected((cur) => {
+      const n = new Set(cur);
+      const k = itemKey(i);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+  }, []);
+  const selectable_ = useMemo(() => listItems.filter(selectable), [listItems]);
+  const onSelectAll = useCallback(() => {
+    setSelected((cur) => (cur.size === selectable_.length ? new Set() : new Set(selectable_.map(itemKey))));
+  }, [selectable_]);
+  const onApply = useCallback(
+    (v: Parameters<typeof bulk>[1], label: string) => {
+      const rows = items.filter((i) => selected.has(itemKey(i)));
+      exitSelect();
+      bulk(rows, v, label);
+    },
+    [items, selected, bulk, exitSelect],
+  );
+
+  const hasLens = !!lens.due || !!lens.unassigned;
+  const hasFilters = nFilters > 0 || !!search || hasLens;
   const initialLoading = (loading && !data) || !ready;
+
+  const header = (
+    <View style={s.overview}>
+      <SwipeHint style={{ marginHorizontal: spacing.lg }} />
+      {truncated && data ? (
+        <Pressable onPress={loadAll} style={s.trunc} accessibilityRole="button" accessibilityLabel="Load the full backlog">
+          <Text style={s.truncText} numberOfLines={2}>Showing {data.items.length} of {data.total}. Load all</Text>
+        </Pressable>
+      ) : null}
+      <StatsStrip stats={stats} />
+      <QuickViews scope={scope} lens={lens} filters={filters} counts={overview.views} onPick={pickView} />
+      <GroupBar value={groupBy} onChange={(g) => update({ groupBy: g })} />
+    </View>
+  );
 
   let body;
   if (initialLoading) body = <RowSkeletons />;
   else if (view === 'board') body = <BoardView items={boardItems} projectName={projectName} onOpen={openItem} onMenu={setMoving} />;
   else if (view === 'calendar')
-    body = <CalendarView items={calItems} projectName={projectName} onOpen={openItem} onAdvance={onAdvance} onMenu={setMoving} onRefresh={onRefresh} refreshing={refreshing} />;
+    body = <CalendarView items={calItems} projectName={projectName} onOpen={openItem} onAdvance={onAdvance} onMove={move} onMenu={setMoving} onRefresh={onRefresh} refreshing={refreshing} />;
   else
     body = (
       <ListView
         items={listItems}
+        groupBy={groupBy}
+        header={header}
+        selecting={selecting}
+        selected={selected}
+        onSelect={onSelect}
+        onMove={move}
+        bottomPad={selecting ? 190 : 120}
         loading={false}
         collapsed={collapsed}
         onToggle={onToggle}
@@ -179,6 +298,7 @@ export function BacklogScreen() {
               </Pressable>
             ) : null}
           </View>
+          <ScopeChip scope={scope} counts={overview.scopes} onPress={() => setScopeSheet(true)} />
           <Pressable onPress={() => setSheet(true)} style={[s.filterBtn, nFilters > 0 && s.filterBtnOn]} accessibilityRole="button" accessibilityLabel={`Filters, ${nFilters} active`}>
             <Ionicons name="options-outline" size={22} color={nFilters > 0 ? '#fff' : COLORS.text} />
             {nFilters > 0 ? (
@@ -188,12 +308,12 @@ export function BacklogScreen() {
             ) : null}
           </Pressable>
         </View>
-        {due || mineParam || nFilters > 0 ? (
+        {hasLens || nFilters > 0 ? (
           <View style={s.chips}>
-            {due || mineParam ? (
-              <Pressable onPress={() => router.setParams({ due: undefined, mine: undefined })} style={s.activeChip} accessibilityRole="button" accessibilityLabel="Remove link filter">
+            {hasLens ? (
+              <Pressable onPress={clearLink} style={s.activeChip} accessibilityRole="button" accessibilityLabel="Remove quick filter">
                 <Text style={s.activeText} numberOfLines={1}>
-                  {mineParam ? 'Mine' : ''}{mineParam && due ? ' · ' : ''}{due ? DUE_LABEL[due] ?? due : ''}
+                  {lens.unassigned ? 'Unassigned' : DUE_LABEL[lens.due ?? ''] ?? lens.due}
                 </Text>
                 <Ionicons name="close" size={16} color="#fff" />
               </Pressable>
@@ -206,7 +326,30 @@ export function BacklogScreen() {
           </View>
         ) : null}
       </View>
-      <View style={s.body}>{body}</View>
+      <View style={s.body}>
+        {body}
+        {selecting ? (
+          <BulkBar count={selected.size} total={selectable_.length} progress={progress} onApply={onApply} onSelectAll={onSelectAll} onCancel={exitSelect} />
+        ) : progress ? (
+          <View style={s.working}><Text style={s.workingText}>{progress.label} {progress.done}/{progress.total}</Text></View>
+        ) : null}
+      </View>
+      <BottomSheet visible={scopeSheet} onClose={() => setScopeSheet(false)} title="Show">
+        {SCOPES.map((o, i) => (
+          <Row
+            key={o.value}
+            title={o.label}
+            subtitle={o.value === 'mine' ? 'Work assigned to you' : o.value === 'team' ? 'Everything assigned to someone' : 'The whole backlog, assigned or not'}
+            right={<Text style={s.scopeCount}>{overview.scopes[o.value]}</Text>}
+            left={<Ionicons name={scope === o.value ? 'radio-button-on' : 'radio-button-off'} size={22} color={COLORS.text} />}
+            divider={i < SCOPES.length - 1}
+            onPress={() => {
+              setScope(o.value);
+              setScopeSheet(false);
+            }}
+          />
+        ))}
+      </BottomSheet>
       <FilterSheet
         visible={sheet}
         onClose={() => setSheet(false)}
@@ -221,6 +364,7 @@ export function BacklogScreen() {
 }
 
 const s = StyleSheet.create({
+  scopeCount: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.text },
   top: { backgroundColor: COLORS.surface, paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border, gap: spacing.sm },
   switch: { flexDirection: 'row', backgroundColor: COLORS.bgMuted, borderRadius: 999, padding: 4 },
   tab: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 4 },
@@ -241,4 +385,9 @@ const s = StyleSheet.create({
   clear: { alignSelf: 'flex-start', minHeight: 36, paddingHorizontal: spacing.sm, justifyContent: 'center' },
   clearText: { fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: COLORS.textSecondary, textDecorationLine: 'underline' },
   body: { flex: 1 },
+  overview: { gap: spacing.sm, paddingVertical: spacing.sm },
+  trunc: { marginHorizontal: spacing.lg, minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: 12, backgroundColor: '#FFFBEB' },
+  truncText: { fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: '#92400E' },
+  working: { position: 'absolute', left: spacing.lg, right: spacing.lg, bottom: spacing.lg, minHeight: 44, borderRadius: 22, backgroundColor: COLORS.text, alignItems: 'center', justifyContent: 'center' },
+  workingText: { fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: '#fff' },
 });

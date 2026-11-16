@@ -3,9 +3,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { relativeDue } from '@/core/date';
 import { Skeleton } from '@/core/ui/Skeleton';
+import { SwipeRow, type SwipeAction } from '@/core/ui/SwipeRow';
 import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Chip, type ChipTone } from './Chip';
-import { initials, priorityColor, type Item } from './model';
+import { initials, priorityColor, selectable, swipeTargets, type Item } from './model';
+import type { Stage } from '@/features/shared/types';
 
 const KIND_ICON = {
   Task: 'checkbox-outline',
@@ -61,9 +63,15 @@ type Props = {
   onOpen: (i: Item) => void;
   onAdvance?: (i: Item) => void;
   onMenu?: (i: Item) => void;
+  /** Swipe right = Done, swipe left = In progress (or back). Omit to turn swiping off. */
+  onMove?: (i: Item, to: Stage) => void;
+  /** Select mode: the circle becomes a checkbox, taps toggle, swiping is off. */
+  selecting?: boolean;
+  selected?: boolean;
+  onSelect?: (i: Item) => void;
 };
 
-function ItemRowImpl({ item, projectName, variant = 'row', onOpen, onAdvance, onMenu }: Props) {
+function ItemRowImpl({ item, projectName, variant = 'row', onOpen, onAdvance, onMenu, onMove, selecting, selected, onSelect }: Props) {
   const due = item.end && item.stage !== 'Done' ? relativeDue(item.end) : null;
   const isTask = item.doctype === 'Task';
   const card = variant === 'card';
@@ -124,41 +132,62 @@ function ItemRowImpl({ item, projectName, variant = 'row', onOpen, onAdvance, on
     );
   }
 
+  const canSelect = !!onSelect && selectable(item);
+  const targets = onMove && !selecting ? swipeTargets(item) : {};
+  const toAction = (t?: ReturnType<typeof swipeTargets>['right']): SwipeAction | undefined =>
+    t ? { label: t.label, icon: t.icon, color: t.color, onTrigger: () => onMove?.(item, t.to) } : undefined;
+  const press = selecting && canSelect ? () => onSelect?.(item) : () => onOpen(item);
+  const longPress = canSelect && !selecting ? () => onSelect?.(item) : onMenu && !selecting ? () => onMenu(item) : undefined;
+
   return (
-    <View style={s.wrap}>
-      <View style={[s.bar, { backgroundColor: priorityColor(item.priority) }]} />
-      <View style={s.body}>
-        {isTask ? (
+    <SwipeRow swipeRight={toAction(targets.right)} swipeLeft={toAction(targets.left)} disabled={selecting || !onMove}>
+      <View style={[s.wrap, selected && s.selected]}>
+        <View style={[s.bar, { backgroundColor: priorityColor(item.priority) }]} />
+        <View style={s.body}>
+          {selecting ? (
+            <View
+              style={s.circle}
+              accessible
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: !!selected, disabled: !canSelect }}
+              accessibilityLabel={item.title}
+            >
+              {canSelect ? (
+                <Ionicons name={selected ? 'checkbox' : 'square-outline'} size={26} color={selected ? COLORS.text : COLORS.textMuted} />
+              ) : null}
+            </View>
+          ) : isTask ? (
+            <Pressable
+              onPress={canAdvance ? () => onAdvance?.(item) : undefined}
+              disabled={!canAdvance}
+              style={s.circle}
+              accessibilityRole="button"
+              accessibilityLabel={canAdvance ? `Advance ${item.title} from ${item.stage}` : `${item.title} is ${item.stage}`}
+            >
+              <Ionicons
+                name={STAGE_ICON[item.stage] ?? 'ellipse-outline'}
+                size={30}
+                color={item.stage === 'Done' ? COLORS.success : COLORS.text}
+              />
+            </Pressable>
+          ) : (
+            <View style={s.circle}>
+              <Ionicons name={KIND_ICON[item.doctype]} size={22} color={COLORS.textMuted} />
+            </View>
+          )}
           <Pressable
-            onPress={canAdvance ? () => onAdvance?.(item) : undefined}
-            disabled={!canAdvance}
-            style={s.circle}
+            onPress={press}
+            onLongPress={longPress}
             accessibilityRole="button"
-            accessibilityLabel={canAdvance ? `Advance ${item.title} from ${item.stage}` : `${item.title} is ${item.stage}`}
+            accessibilityLabel={label}
+            style={({ pressed }) => [s.mainPress, pressed && s.pressed]}
           >
-            <Ionicons
-              name={STAGE_ICON[item.stage] ?? 'ellipse-outline'}
-              size={30}
-              color={item.stage === 'Done' ? COLORS.success : COLORS.text}
-            />
+            <View style={s.main}>{content}</View>
+            {names.length ? <Avatars names={names} /> : null}
           </Pressable>
-        ) : (
-          <View style={s.circle}>
-            <Ionicons name={KIND_ICON[item.doctype]} size={22} color={COLORS.textMuted} />
-          </View>
-        )}
-        <Pressable
-          onPress={() => onOpen(item)}
-          onLongPress={onMenu ? () => onMenu(item) : undefined}
-          accessibilityRole="button"
-          accessibilityLabel={label}
-          style={({ pressed }) => [s.mainPress, pressed && s.pressed]}
-        >
-          <View style={s.main}>{content}</View>
-          {names.length ? <Avatars names={names} /> : null}
-        </Pressable>
+        </View>
       </View>
-    </View>
+    </SwipeRow>
   );
 }
 
@@ -205,6 +234,7 @@ const s = StyleSheet.create({
     minHeight: 0,
   },
   pressed: { backgroundColor: COLORS.bgMuted },
+  selected: { backgroundColor: '#EEF2FF' },
   bar: { width: 4, alignSelf: 'stretch', position: 'absolute', left: 0, top: 0, bottom: 0 },
   body: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: spacing.md + 4 },
   mainPress: { flex: 1, flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', paddingRight: spacing.md },

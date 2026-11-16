@@ -21,15 +21,27 @@ function fullUrl(config: LoggableConfig): string {
   return base.replace(/\/+$/, '') + '/' + url.replace(/^\/+/, '');
 }
 
+const SECRET_KEY = /pass(word)?|pwd|secret|token|api_?key|otp|authorization|cookie|sid/i;
+
+/** Hides the value of any secret-looking key, recursively, so logs and the debug store never hold a password. */
+export function redact(value: unknown, depth = 0): unknown {
+  if (depth > 6 || value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map((v) => redact(v, depth + 1));
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, SECRET_KEY.test(k) ? '<redacted>' : redact(v, depth + 1)]),
+  );
+}
+
 export function safeBody(body: unknown): unknown {
   if (typeof body === 'string') {
     try {
-      return JSON.parse(body);
+      return redact(JSON.parse(body));
     } catch {
-      return body;
+      // Form-encoded or plain text: blank the value of secret-looking fields.
+      return body.replace(/((?:^|&)[^=&]*(?:pass(?:word)?|pwd|secret|token|api_?key|otp)[^=&]*=)[^&]*/gi, '$1<redacted>');
     }
   }
-  return body;
+  return redact(body);
 }
 
 function redactHeaders(headers: unknown): Record<string, unknown> | undefined {
@@ -60,7 +72,7 @@ export function logRequest(config: LoggableConfig): void {
   console.log(`${TAG} → ${method} ${fullUrl(config)}`);
   const headers = redactHeaders(config.headers);
   if (headers && Object.keys(headers).length > 0) console.log(`${TAG}   headers:`, headers);
-  if (config.params) console.log(`${TAG}   params:`, config.params);
+  if (config.params) console.log(`${TAG}   params:`, redact(config.params));
   if (config.data !== undefined) console.log(`${TAG}   body:`, safeBody(config.data));
 }
 

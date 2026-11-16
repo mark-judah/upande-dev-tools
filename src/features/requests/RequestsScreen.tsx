@@ -142,16 +142,21 @@ export function RequestsScreen() {
         <StatTile label="Done (month)" value={stats.done} onPress={() => setStatus('done')} />
       </View>
 
-      {isReviewer && toReview > 0 ? (
+      {isReviewer ? (
         <Pressable
           onPress={() => router.push('/review-queue' as never)}
           style={s.banner}
           accessibilityRole="button"
-          accessibilityLabel={`${toReview} to review`}
+          accessibilityLabel={`Triage queue, ${toReview} waiting for a decision`}
         >
           <View style={s.bannerBadge}><Text style={s.bannerCount}>{toReview}</Text></View>
-          <Text style={s.bannerText}>waiting for your review</Text>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.text} />
+          <View style={s.bannerBody}>
+            <Text style={s.bannerText}>{toReview > 0 ? 'Triage queue' : 'Queue is clear'}</Text>
+            <Text style={s.bannerSub} numberOfLines={1}>
+              {toReview > 0 ? 'Swipe right to accept, left to defer' : 'Nothing is waiting for a decision'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textOnPrimary} />
         </Pressable>
       ) : null}
 
@@ -292,10 +297,12 @@ const s = StyleSheet.create({
   tileActive: { borderWidth: 2, borderColor: COLORS.textMuted },
   tileValue: { fontFamily: fontFamily.bold, fontSize: fontSize.xxl, color: COLORS.textOnPrimary, lineHeight: 32 },
   tileLabel: { fontFamily: fontFamily.medium, fontSize: 12, color: '#D4D4D4' },
-  banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48, backgroundColor: '#FFFBEB', borderRadius: borderRadius.md, paddingHorizontal: spacing.md, marginBottom: spacing.md, borderWidth: 1, borderColor: '#FDE68A' },
-  bannerBadge: { minWidth: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.text, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  bannerCount: { fontFamily: fontFamily.bold, fontSize: fontSize.sm, color: COLORS.textOnPrimary },
-  bannerText: { flex: 1, fontFamily: fontFamily.semiBold, fontSize: fontSize.sm, color: COLORS.text },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 64, backgroundColor: COLORS.text, borderRadius: borderRadius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, marginBottom: spacing.md },
+  bannerBadge: { minWidth: 36, height: 36, borderRadius: 18, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  bannerCount: { fontFamily: fontFamily.bold, fontSize: fontSize.md, color: COLORS.text },
+  bannerBody: { flex: 1 },
+  bannerText: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.textOnPrimary },
+  bannerSub: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: '#D4D4D4' },
   search: { marginBottom: 0 },
   chips: { gap: spacing.sm, paddingBottom: spacing.md, alignItems: 'center' },
   divider: { width: 1, height: 24, backgroundColor: COLORS.border },
