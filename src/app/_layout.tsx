@@ -11,6 +11,7 @@ import 'react-native-reanimated';
 import { ToastProvider } from '@/core/ui/Toast';
 import { DialogHost } from '@/core/ui/DialogHost';
 import { OfflineBanner } from '@/core/ui/OfflineBanner';
+import { SideMenu } from '@/core/ui/SideMenu';
 import { useAuthStore } from '@/core/auth/store';
 import { useNetworkStore } from '@/core/network/store';
 import { hasDevAccess } from '@/navigation';
@@ -77,6 +78,7 @@ export default function RootLayout() {
               <Stack.Screen name="biometric-lock" options={{ animation: 'fade' }} />
             </Stack>
             <OfflineBanner />
+            <SideMenu />
             <CaptureHost />
             <NotificationsHost />
             <DialogHost />

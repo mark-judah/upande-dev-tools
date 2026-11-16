@@ -20,8 +20,8 @@ configureMobileKit({
   // Pin one with `environment: 'production'`. localhost works in the iOS simulator; the Android emulator needs http://10.0.2.2:<port>, a real phone your computer's LAN address.
   biometric: 'host', // your app already locks itself with expo-local-authentication; the kit adds no lock of its own
   // apk: { autoDownload: 'wifi' }, // 'wifi' (default) | 'always' | 'never'
-  fab: false, // the floating gear overlapped content; Settings lives under More > App updates and support
-  // fab: true, // the floating Settings button: true (default) | false | 'dev' | { initialSide: 'left', bottom: 96 }
+  // The kit's floating button stays on; it sits above the tab bar on the right (the capture button is centred).
+  fab: { initialSide: 'right', bottom: 96 },
   //
   // Crash & API monitoring is ON by default. The person can turn it off in Settings. Defaults shown:
   // monitor: {

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Button } from './Button';
 import { router } from 'expo-router';
+import { useDrawer } from './drawer-store';
 
 type Props = {
   title?: string;
@@ -52,6 +53,7 @@ export function Screen({
   headerRight,
 }: Props) {
   const [refreshing, setRefreshing] = useState(false);
+  const openDrawer = useDrawer((st) => st.setOpen);
 
   const handleRefresh = onRefresh
     ? async () => {
@@ -118,7 +120,17 @@ export function Screen({
     <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
       {title ? (
         <View style={s.header}>
-          {tab ? null : (
+          {tab ? (
+            <Pressable
+              onPress={() => openDrawer(true)}
+              hitSlop={6}
+              style={s.menuBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Open menu"
+            >
+              <Ionicons name="menu-outline" size={26} color={COLORS.text} />
+            </Pressable>
+          ) : (
             <Pressable
               onPress={() => (router.canGoBack() ? router.back() : router.replace(backFallback as never))}
               hitSlop={10}
@@ -172,7 +184,7 @@ const s = StyleSheet.create({
     fontSize: fontSize.lg,
     color: COLORS.text,
   },
-  titleTab: { textAlign: 'left', fontFamily: fontFamily.bold, fontSize: fontSize.xl },
+  titleTab: { textAlign: 'left', fontFamily: fontFamily.bold, fontSize: fontSize.xl, marginLeft: spacing.xs },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
   errorTitle: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.danger },

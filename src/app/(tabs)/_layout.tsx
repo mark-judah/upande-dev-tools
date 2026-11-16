@@ -64,8 +64,8 @@ export default function TabsLayout() {
           },
         }}
       />
+      <Tabs.Screen name="requests" options={{ title: 'Requests', tabBarIcon: tabIcon('chatbox-ellipses', 'chatbox-ellipses-outline') }} />
       <Tabs.Screen name="deployments" options={{ title: 'Ship', tabBarIcon: tabIcon('rocket', 'rocket-outline') }} />
-      <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: tabIcon('menu', 'menu-outline') }} />
     </Tabs>
   );
 }
