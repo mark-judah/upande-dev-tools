@@ -1,8 +1,9 @@
-import { callMethod } from '@/core/api/call';
+import { callItMethod as callMethod } from '@/core/it-source/it-client';
 
 /**
  * The IT dashboard backend (`upande_core.it_dashboard.*`). Gate: the "IT Team" role profile
- * (Administrator always passes). Errors arrive as standard Frappe 403/417 responses; use
+ * (Administrator always passes). Calls go to the IT data source: a separately signed-in site if the developer set one
+ * (see src/core/it-source), otherwise the main site. Errors arrive as standard Frappe 403/417 responses; use
  * `mapAxiosError` from '@/core/api/client' to get the message.
  */
 const BASE = 'upande_core.it_dashboard';

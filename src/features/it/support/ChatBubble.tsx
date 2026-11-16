@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
+import { getItEndpoint } from '@/core/it-source/it-client';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { storage, StorageKeys } from '@/core/storage';
 import { followDevHost } from '@/core/api/dev-host';
 import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { clock } from './model';
@@ -13,8 +13,8 @@ function Attachment({ url }: { url: string }) {
     let live = true;
     (async () => {
       if (/^https?:/.test(url)) return live && setSrc({ uri: url });
-      const [base, cookie] = await Promise.all([storage.get(StorageKeys.instanceUrl), storage.get(StorageKeys.cookie)]);
-      if (live && base) setSrc({ uri: followDevHost(base).replace(/\/$/, '') + url, headers: cookie ? { Cookie: cookie } : undefined });
+      const ep = await getItEndpoint();
+      if (live && ep) setSrc({ uri: followDevHost(ep.baseUrl).replace(/\/$/, '') + url, headers: ep.cookie ? { Cookie: ep.cookie } : undefined });
     })().catch(() => {});
     return () => { live = false; };
   }, [url]);

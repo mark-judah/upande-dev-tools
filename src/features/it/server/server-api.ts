@@ -1,4 +1,4 @@
-import { callMethod } from '@/core/api/call';
+import { callItMethod as callMethod } from '@/core/it-source/it-client';
 
 const LEGACY = 'upande_core.api.it_dashboard';
 

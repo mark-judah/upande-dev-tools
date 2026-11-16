@@ -3,8 +3,11 @@ import { authRepository } from './repository';
 import { storage, StorageKeys } from '@/core/storage';
 import * as Biometric from '@/core/biometric';
 import { reportInstall } from '@/core/version/install-register';
-import { setLoginServer } from './server-change';
+import { activateSite } from './server-change';
 import { instanceKey, knownInstances } from './known-instances';
+import { siteSessions } from './site-sessions';
+import { verifySession } from './site-check';
+import { loginDraft } from './login-draft';
 import { consumeInstanceSwitched, restartForInstance } from './restart';
 
 /** How long a switching sign-in waits for its register report before restarting. */
@@ -35,25 +38,57 @@ type AuthState = {
 
   hydrate: () => Promise<void>;
   login: (email: string, password: string, url: string) => Promise<boolean>;
-  /** Prompt the OS biometric, then re-authenticate using the stored password.
-   *  Returns a structured outcome so the screen can show the right message. */
-  biometricLogin: () => Promise<
+  /** Prompt the OS biometric, then re-authenticate `url` (default: the live
+   *  site) using that site's stored password. */
+  biometricLogin: (url?: string) => Promise<
     | { ok: true }
     | { ok: false; reason: 'cancelled' | 'no_credentials' | 'auth_failed' | 'unavailable'; message?: string }
   >;
   setBiometricEnabled: (on: boolean) => Promise<void>;
   unlock: () => void;
-  /** Soft logout of the live instance only — its session cookie goes, the
-   *  password + biometric flag stay so the user can sign back in with
-   *  biometrics. */
+  /** Make a signed-in saved site the live one, no password asked. Its saved
+   *  session is checked quietly first; the app then starts over on it. */
+  switchSite: (url: string) => Promise<
+    { ok: true } | { ok: false; reason: 'no_session' | 'expired'; email: string | null }
+  >;
+  /** Sign out of ONE site (default: the live one). Its session goes; the site
+   *  stays in the list and its password backup stays for biometrics. */
+  signOutSite: (url?: string) => Promise<void>;
+  /** Remove a site from this device: session, password backup and list entry. */
+  forgetSite: (url: string) => Promise<void>;
+  /** Sign out of the live site only (kept for older callers). */
   logout: () => Promise<void>;
-  /** Sign out and move the login screen to another server. One server at a
-   *  time: nothing of this one is kept for it. */
-  changeServer: (url: string) => Promise<void>;
-  /** Hard logout — wipe everything. Used on 401 / "Forget device". */
+  /** Hard reset: sign out of EVERY site, drop every password backup and the
+   *  biometric setting. Callers confirm first (see `confirmForgetDevice`). */
   forgetDevice: () => Promise<void>;
   hasRole: (role: string) => boolean;
 };
+
+/** A device signed in before sites kept their own sessions: file the live
+ *  session (and its password backup) under its site, once. */
+async function adoptLiveSite(): Promise<void> {
+  try {
+    const [url, cookie] = await Promise.all([
+      storage.get(StorageKeys.instanceUrl),
+      storage.get(StorageKeys.cookie),
+    ]);
+    if (!url || !cookie || (await siteSessions.get(url))) return;
+    const [email, fullName, roles, pw] = await Promise.all([
+      storage.get(StorageKeys.emailBackup),
+      storage.get(StorageKeys.fullName),
+      authRepository.loadRoles(),
+      storage.get(StorageKeys.passwordBackup),
+    ]);
+    await siteSessions.set(url, { cookie, roles, fullName, email });
+    if (pw) {
+      await siteSessions.setPassword(url, pw);
+      await storage.remove(StorageKeys.passwordBackup);
+    }
+    if (!(await knownInstances.get(url))) await knownInstances.remember(url, email, fullName);
+  } catch {
+    // Not fatal: the live keys still work, the site just joins the list at its next sign-in.
+  }
+}
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'idle',
@@ -72,6 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // (not a brand-new login within the same session) left it null in
     // memory, so the home screen's `fullName || email` greeting fell back
     // to the email on every relaunch regardless of what login() had stored.
+    await adoptLiveSite();
     const [hasSession, roles, email, fullName, instanceUrl, bioFlag] = await Promise.all([
       authRepository.hasSession(),
       authRepository.loadRoles(),
@@ -116,6 +152,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         reportInstall({ reason: 'login', user: email });
       }
+      loginDraft.clearIfSite(result.instanceUrl).catch(() => {});
       set({
         status: 'success',
         fullName: result.fullName,
@@ -133,7 +170,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return false;
   },
 
-  biometricLogin: async () => {
+  biometricLogin: async (url) => {
     if (!Biometric.isModuleAvailable()) {
       return { ok: false, reason: 'unavailable' };
     }
@@ -148,11 +185,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       return { ok: false, reason: 'auth_failed', message: auth.error };
     }
-    const { email, password, url } = await authRepository.loadFullCredentials();
-    if (!email || !password || !url) {
+    const target = url ?? get().instanceUrl ?? (await storage.get(StorageKeys.instanceUrlBackup));
+    if (!target) return { ok: false, reason: 'no_credentials' };
+    const creds = await authRepository.loadFullCredentials(target);
+    if (!creds.email || !creds.password || !creds.url) {
       return { ok: false, reason: 'no_credentials' };
     }
-    const ok = await get().login(email, password, url);
+    const ok = await get().login(creds.email, creds.password, creds.url);
     if (!ok) {
       return { ok: false, reason: 'auth_failed', message: get().error ?? undefined };
     }
@@ -166,37 +205,77 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   unlock: () => set({ biometricLocked: false }),
 
-  logout: async () => {
-    // The server's session goes; the password stays for biometric sign-in.
-    // Roles go too: the next person to sign in may not hold them.
-    await Promise.all([storage.remove(StorageKeys.cookie), storage.remove(StorageKeys.userRoles)]);
+  switchSite: async (url) => {
+    const known = await knownInstances.get(url);
+    const target = known?.url ?? url;
+    const session = await siteSessions.get(target);
+    if (!session) return { ok: false, reason: 'no_session', email: known?.email ?? null };
+    const check = await verifySession(target, session.cookie);
+    if (check.state === 'expired') {
+      await siteSessions.clear(target);
+      return { ok: false, reason: 'expired', email: session.email ?? known?.email ?? null };
+    }
+    // Unreachable: enter on the saved session; the screens report the offline state themselves.
+    const live =
+      check.state === 'valid'
+        ? { ...session, roles: check.roles, fullName: check.fullName ?? session.fullName }
+        : session;
+    if (check.state === 'valid') await siteSessions.set(target, live);
+    await activateSite(target, live);
+    await knownInstances.touch(target);
     set({
       status: 'idle',
       error: null,
-      hasSession: false,
-      roles: [],
+      fullName: live.fullName,
+      email: live.email,
+      instanceUrl: target,
+      hasSession: true,
+      roles: live.roles,
       biometricLocked: false,
     });
+    // Every store and open request belonged to the previous site: start over on this one.
+    await restartForInstance(target);
+    return { ok: true };
   },
 
-  changeServer: async (url) => {
-    const known = (await knownInstances.list()).find((k) => instanceKey(k.url) === instanceKey(url));
-    await setLoginServer(known?.url ?? url, known?.email ?? get().email);
-    set({
-      status: 'idle',
-      error: null,
-      fullName: null,
-      instanceUrl: null,
-      hasSession: false,
-      roles: [],
-      biometricLocked: false,
-    });
-    // Every store and open request belonged to the old server: start over, at
-    // login. Signed out, so the biometric lock is never skipped for it.
-    await restartForInstance();
+  signOutSite: async (url) => {
+    const target = url ?? get().instanceUrl;
+    if (target) await siteSessions.clear(target);
+    const live = get().instanceUrl;
+    if (!target || (live && instanceKey(live) === instanceKey(target))) {
+      // The live site's copy goes too. Its password stays for biometric sign-in,
+      // and roles go because the next person to sign in may not hold them.
+      await Promise.all([storage.remove(StorageKeys.cookie), storage.remove(StorageKeys.userRoles)]);
+      set({ status: 'idle', error: null, hasSession: false, roles: [], biometricLocked: false });
+    }
+  },
+
+  forgetSite: async (url) => {
+    const live = get().instanceUrl;
+    const isLive = !!live && instanceKey(live) === instanceKey(url);
+    if (isLive) await get().signOutSite(url);
+    await siteSessions.wipe(url);
+    await knownInstances.forget(url);
+    if (isLive) {
+      await Promise.all([
+        storage.remove(StorageKeys.instanceUrl),
+        storage.remove(StorageKeys.instanceUrlBackup),
+        storage.remove(StorageKeys.emailBackup),
+        storage.remove(StorageKeys.fullName),
+      ]);
+      set({ fullName: null, email: null, instanceUrl: null });
+    }
+  },
+
+  logout: async () => {
+    await get().signOutSite();
   },
 
   forgetDevice: async () => {
+    const sites = await knownInstances.list();
+    await Promise.all(sites.map((site) => siteSessions.wipe(site.url)));
+    const live = get().instanceUrl;
+    if (live) await siteSessions.wipe(live);
     await authRepository.logout();
     await storage.remove(StorageKeys.biometricEnabled);
     set({

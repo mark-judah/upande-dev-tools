@@ -1,5 +1,6 @@
 import { storage, StorageKeys } from '@/core/storage';
 import { instanceKey } from './known-instances';
+import type { SiteSession } from './site-sessions';
 
 /**
  * One server at a time. Everything below belongs to the server it was written
@@ -38,11 +39,20 @@ export async function clearServerData(): Promise<void> {
   await Promise.all(SERVER_SCOPED_KEYS.map((k) => storage.remove(k)));
 }
 
-/** Sign out and make `url` the login screen's server, with `email` (the one
- *  last used there, if any) in its account field. */
-export async function setLoginServer(url: string, email: string | null): Promise<void> {
-  await clearServerData();
-  await storage.set(StorageKeys.instanceUrlBackup, url);
-  if (email) await storage.set(StorageKeys.emailBackup, email);
-  else await storage.remove(StorageKeys.emailBackup);
+/**
+ * Make `url` the live site: the plain keys the API client reads on every
+ * request now point at it, with its session. Another site's station, labels
+ * and the like go first. Nothing of the previous site's saved session is
+ * touched, so it can be switched back to without signing in.
+ */
+export async function activateSite(url: string, session: SiteSession): Promise<void> {
+  if (await isOtherServer(url)) await clearServerData();
+  await Promise.all([
+    storage.set(StorageKeys.cookie, session.cookie),
+    storage.set(StorageKeys.instanceUrl, url),
+    storage.set(StorageKeys.instanceUrlBackup, url),
+    session.email ? storage.set(StorageKeys.emailBackup, session.email) : storage.remove(StorageKeys.emailBackup),
+    session.fullName ? storage.set(StorageKeys.fullName, session.fullName) : storage.remove(StorageKeys.fullName),
+    storage.set(StorageKeys.userRoles, JSON.stringify(session.roles ?? [])),
+  ]);
 }

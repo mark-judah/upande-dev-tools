@@ -1,4 +1,4 @@
-import { DevSettings } from 'react-native';
+import { DevSettings, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import { storage, StorageKeys } from '@/core/storage';
 import { instanceKey } from './known-instances';
@@ -19,6 +19,15 @@ import { instanceKey } from './known-instances';
 export async function restartForInstance(signedInTo?: string | null): Promise<boolean> {
   const key = signedInTo ? instanceKey(signedInTo) : '';
   if (key) await storage.set(StorageKeys.instanceSwitched, key).catch(() => {});
+  if (Platform.OS === 'web') {
+    // No expo-updates on the web: reloading the page starts the app over.
+    if (typeof window !== 'undefined' && window.location?.reload) {
+      window.location.reload();
+      return true;
+    }
+    await storage.remove(StorageKeys.instanceSwitched).catch(() => {});
+    return false;
+  }
   try {
     await Updates.reloadAsync();
     return true;

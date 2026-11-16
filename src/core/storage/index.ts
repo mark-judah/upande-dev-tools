@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureStorage } from '@/core/auth/secure-storage';
 
 export const StorageKeys = {
   cookie: 'cookie',
@@ -33,18 +34,46 @@ export const StorageKeys = {
   captureQueue: 'capture_queue',
   /** Last known gamification totals, shown before the server answers. */
   achievementsCache: 'achievements_cache',
+  /** What was typed on the add-a-site form (url + email), kept until a sign-in succeeds. */
+  loginDraft: 'login_draft',
 } as const;
 
+/** Keys whose values are secrets: kept in the OS keystore, not plain AsyncStorage. */
+const SECRET_KEYS: readonly string[] = [StorageKeys.cookie, StorageKeys.passwordBackup];
+
+async function getSecret(key: string): Promise<string | null> {
+  const v = await secureStorage.get(key);
+  if (v != null) return v;
+  // Written by an older build into plain storage: move it into the keystore once.
+  const legacy = await AsyncStorage.getItem(key);
+  if (legacy != null) {
+    await secureStorage.set(key, legacy);
+    await AsyncStorage.removeItem(key);
+  }
+  return legacy;
+}
+
 export const storage = {
-  get: (key: string): Promise<string | null> => AsyncStorage.getItem(key),
-  set: (key: string, value: string): Promise<void> => AsyncStorage.setItem(key, value),
-  remove: (key: string): Promise<void> => AsyncStorage.removeItem(key),
+  get: (key: string): Promise<string | null> =>
+    SECRET_KEYS.includes(key) ? getSecret(key) : AsyncStorage.getItem(key),
+  async set(key: string, value: string): Promise<void> {
+    if (SECRET_KEYS.includes(key)) {
+      await secureStorage.set(key, value);
+      await AsyncStorage.removeItem(key);
+      return;
+    }
+    await AsyncStorage.setItem(key, value);
+  },
+  async remove(key: string): Promise<void> {
+    if (SECRET_KEYS.includes(key)) await secureStorage.remove(key);
+    await AsyncStorage.removeItem(key);
+  },
   async clearExcept(keep: string[]): Promise<void> {
     const allKeys = Object.values(StorageKeys);
     await Promise.all(
       allKeys
         .filter((k) => !keep.includes(k))
-        .map((k) => AsyncStorage.removeItem(k)),
+        .map((k) => storage.remove(k)),
     );
   },
 };

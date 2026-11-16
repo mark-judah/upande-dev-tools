@@ -3,7 +3,8 @@ import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWind
 import { router, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { ServerDialog } from '@/core/auth/ServerSection';
+import { SiteSwitcherSheet } from '@/core/auth/ServerSection';
+import { instanceLabel } from '@/core/auth/known-instances';
 import { useAuthStore } from '@/core/auth/store';
 import { APP_NAME, APP_VERSION } from '@/core/version';
 import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
@@ -69,22 +70,33 @@ export function SideMenu() {
           <Animated.View style={[s.panel, { width: drawerWidth, transform: [{ translateX: slide }] }]}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom', 'left']}>
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-                <Pressable
-                  style={s.profile}
-                  onPress={() => go('/settings')}
-                  onLongPress={() => {
-                    setOpen(false);
-                    setServerOpen(true);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Account and settings"
-                >
-                  <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.name} numberOfLines={1}>{fullName}</Text>
-                    <Text style={s.email} numberOfLines={1}>{instanceUrl?.replace(/^https?:\/\//, '') ?? email}</Text>
-                  </View>
-                </Pressable>
+                <View style={s.profileBlock}>
+                  <Pressable
+                    style={s.profile}
+                    onPress={() => go('/settings')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Account and settings"
+                  >
+                    <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.name} numberOfLines={1}>{fullName}</Text>
+                      <Text style={s.email} numberOfLines={1}>{email}</Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [s.siteChip, pressed && { opacity: 0.75 }]}
+                    onPress={() => {
+                      setOpen(false);
+                      setServerOpen(true);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Switch site"
+                  >
+                    <Ionicons name="server-outline" size={18} color={COLORS.textSecondary} />
+                    <Text style={s.siteText} numberOfLines={1}>{instanceUrl ? instanceLabel(instanceUrl) : 'No site'}</Text>
+                    <Ionicons name="chevron-down" size={18} color={COLORS.textSecondary} />
+                  </Pressable>
+                </View>
 
                 {visibleGroups(roles).map((g, gi) => (
                   <View key={g.title ?? gi} style={s.group}>
@@ -123,7 +135,7 @@ export function SideMenu() {
           </Animated.View>
         </View>
       </Modal>
-      <ServerDialog visible={serverOpen} onClose={() => setServerOpen(false)} />
+      <SiteSwitcherSheet visible={serverOpen} onClose={() => setServerOpen(false)} />
     </>
   );
 }
@@ -133,7 +145,10 @@ const s = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFill, backgroundColor: COLORS.overlay },
   panel: { position: 'absolute', top: 0, bottom: 0, left: 0, backgroundColor: COLORS.surface },
   scroll: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.md },
-  profile: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.sm, marginBottom: spacing.sm },
+  profileBlock: { marginBottom: spacing.sm },
+  profile: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.sm },
+  siteChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md, borderRadius: 14, backgroundColor: COLORS.bgMuted },
+  siteText: { flex: 1, fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: COLORS.text },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.text, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fontFamily.bold, fontSize: fontSize.md, color: '#fff' },
   name: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.text },

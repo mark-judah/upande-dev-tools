@@ -1,178 +1,195 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/core/ui/Button';
-import { Dialog } from '@/core/ui/Dialog';
-import { Input } from '@/core/ui/Input';
+import { BottomSheet } from '@/core/ui/Dialog';
+import { showDialog } from '@/core/ui/DialogHost';
 import { useToast } from '@/core/ui/Toast';
-import { useAuthStore } from '@/core/auth/store';
-import {
-  instanceKey,
-  instanceLabel,
-  knownInstances,
-  type KnownInstance,
-} from '@/core/auth/known-instances';
+import { useAuthStore } from './store';
+import { instanceKey, instanceLabel, siteTitle } from './known-instances';
+import { loadSites, type SiteRow } from './sites';
+import { SiteCard } from './SiteCard';
+import { SiteActions, confirmForgetDevice } from './SiteActions';
+import { LoginFlow } from './LoginFlow';
 import { COLORS, borderRadius, fontFamily, fontSize, spacing } from '@/core/theme';
 
+type Pending = { url: string; notice: string } | null;
+
 /**
- * The server this app signs in to, one at a time. Change signs out here and
- * opens the login screen for the server picked.
- * Packhouse queues no scans offline, so a change has nothing unsent to lose.
+ * The visible site switcher: a sheet listing every saved site (the live one
+ * checked). A signed-in site is one tap away; "Add a site" opens the sign-in
+ * flow as a modal over the app, so the live site stays signed in and untouched
+ * until the new sign-in succeeds. Opened from the sidebar header and Settings.
  */
-function useServerChange(onDone?: () => void) {
-  const currentUrl = useAuthStore((s) => s.instanceUrl);
-  const changeServer = useAuthStore((s) => s.changeServer);
+export function SiteSwitcherSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const liveUrl = useAuthStore((s) => s.instanceUrl);
+  const switchSite = useAuthStore((s) => s.switchSite);
   const { showError } = useToast();
-  const currentKey = instanceKey(currentUrl);
 
-  const [instances, setInstances] = useState<KnownInstance[]>([]);
-  const [picked, setPicked] = useState<string | null>(null);
-  const [draftUrl, setDraftUrl] = useState('');
-  const [busy, setBusy] = useState(false);
-  // Synchronous guard: Enter then a tap (or a double tap) lands before `busy` re-renders.
-  const inFlight = useRef(false);
+  const [sites, setSites] = useState<SiteRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [menuSite, setMenuSite] = useState<SiteRow | null>(null);
+  const [busyUrl, setBusyUrl] = useState<string | null>(null);
+  const [adding, setAdding] = useState<Pending | 'new' | null>(null);
 
-  useEffect(() => {
-    knownInstances.list().then(setInstances).catch(() => {});
+  const refresh = useCallback(async () => {
+    setSites(await loadSites());
+    setLoaded(true);
   }, []);
 
-  const typed = draftUrl.trim().replace(/\/+$/, '');
-  const target = typed || picked;
-  const canChange = !!target && instanceKey(target) !== currentKey && !busy;
+  useEffect(() => {
+    if (!visible) return;
+    let live = true;
+    loadSites()
+      .then((list) => {
+        if (!live) return;
+        setSites(list);
+        setLoaded(true);
+        setMenuSite(null);
+      })
+      .catch(() => live && setLoaded(true));
+    return () => {
+      live = false;
+    };
+  }, [visible]);
 
-  const rows =
-    currentUrl && !instances.some((i) => instanceKey(i.url) === currentKey)
-      ? [{ url: currentUrl, email: null, lastUsedAt: 0 } as KnownInstance, ...instances]
-      : instances;
+  const liveKey = instanceKey(liveUrl);
 
-  const apply = async () => {
-    if (!target || inFlight.current) return;
-    inFlight.current = true;
-    setBusy(true);
+  const enter = async (site: SiteRow) => {
+    if (busyUrl) return;
+    if (instanceKey(site.url) === liveKey) return onClose();
+    if (!site.signedIn) {
+      onClose();
+      setAdding({ url: site.url, notice: '' });
+      return;
+    }
+    setBusyUrl(site.url);
     try {
-      await changeServer(target);
-      onDone?.();
-      router.replace('/login');
+      const res = await switchSite(site.url);
+      if (res.ok) return onClose();
+      onClose();
+      setAdding({ url: site.url, notice: `Your session on ${siteTitle(site)} has ended. Sign in again.` });
     } catch {
-      // Closed first: the toast sits under the dialog's modal.
-      onDone?.();
-      showError("Couldn't change server. Try again.");
+      showError("Couldn't switch site. Try again.");
     } finally {
-      inFlight.current = false;
-      setBusy(false);
+      setBusyUrl(null);
     }
   };
 
-  const change = async () => {
-    if (!canChange) return;
-    await apply();
+  const signOutLive = () => {
+    const live = sites.find((x) => instanceKey(x.url) === liveKey);
+    onClose();
+    showDialog(
+      `Sign out of ${live ? siteTitle(live) : 'this site'}?`,
+      'Only this site. Your other sites stay signed in.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: async () => {
+            await useAuthStore.getState().signOutSite();
+            router.replace('/login');
+          },
+        },
+      ],
+    );
   };
 
-  return {
-    rows,
-    currentKey,
-    selectedKey: typed ? null : picked ? instanceKey(picked) : currentKey,
-    pick: (url: string) => {
-      setDraftUrl('');
-      setPicked(url);
-    },
-    draftUrl,
-    setDraftUrl,
-    canChange,
-    busy,
-    change,
-    apply,
-  };
-}
+  const pending = adding && adding !== 'new' ? adding : null;
 
-type ServerChange = ReturnType<typeof useServerChange>;
-
-function ServerPicker({ sc }: { sc: ServerChange }) {
   return (
-    <View>
-      {sc.rows.map((inst) => {
-        const key = instanceKey(inst.url);
-        const selected = key === sc.selectedKey;
-        return (
-          <Pressable
-            key={inst.url}
-            onPress={() => sc.pick(inst.url)}
-            style={({ pressed }) => [s.row, selected && s.rowSelected, pressed && { opacity: 0.8 }]}
-          >
-            <Ionicons
-              name={selected ? 'radio-button-on' : 'radio-button-off'}
-              size={18}
-              color={selected ? COLORS.primary : COLORS.textMuted}
-            />
-            <View style={s.flex}>
-              <Text style={s.host} numberOfLines={1}>
-                {instanceLabel(inst.url)}
-              </Text>
-              {inst.fullName || inst.email ? (
-                <Text style={s.sub} numberOfLines={1}>
-                  {inst.fullName || inst.email}
-                </Text>
-              ) : null}
+    <>
+      <BottomSheet
+        visible={visible}
+        onClose={onClose}
+        busy={!!busyUrl}
+        title={menuSite ? siteTitle(menuSite) : 'Sites'}
+        subtitle={menuSite ? (menuSite.nickname ? instanceLabel(menuSite.url) : undefined) : 'Switch site, or add another'}
+      >
+        {menuSite ? (
+          <>
+            <Pressable onPress={() => setMenuSite(null)} style={s.backRow} accessibilityRole="button">
+              <Ionicons name="chevron-back" size={20} color={COLORS.text} />
+              <Text style={s.backText}>All sites</Text>
+            </Pressable>
+            <SiteActions site={menuSite} onClose={onClose} onChanged={refresh} />
+          </>
+        ) : !loaded ? (
+          <ActivityIndicator color={COLORS.text} />
+        ) : (
+          <>
+            {sites.map((site) => (
+              <SiteCard
+                key={site.url}
+                site={site}
+                current={instanceKey(site.url) === liveKey}
+                busy={busyUrl === site.url}
+                onPress={() => enter(site)}
+                onMenu={() => setMenuSite(site)}
+              />
+            ))}
+            <Pressable
+              onPress={() => {
+                onClose();
+                setAdding('new');
+              }}
+              accessibilityRole="button"
+              style={({ pressed }) => [s.addRow, pressed && { opacity: 0.75 }]}
+            >
+              <Ionicons name="add-circle-outline" size={24} color={COLORS.text} />
+              <Text style={s.addText}>Add a site</Text>
+            </Pressable>
+            <View style={s.footer}>
+              <Pressable onPress={signOutLive} accessibilityRole="button" style={s.footLink}>
+                <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
+                <Text style={[s.footText, { color: COLORS.danger }]} numberOfLines={1}>Sign out of this site</Text>
+              </Pressable>
+              <Pressable onPress={() => { onClose(); confirmForgetDevice(); }} accessibilityRole="button" style={s.footLink}>
+                <Text style={s.footMuted} numberOfLines={1}>Forget this device</Text>
+              </Pressable>
             </View>
-            {key === sc.currentKey ? <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} /> : null}
-          </Pressable>
-        );
-      })}
-      <Input
-        value={sc.draftUrl}
-        onChangeText={sc.setDraftUrl}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-        placeholder="your-site.upande.com"
-        returnKeyType="go"
-        onSubmitEditing={sc.change}
-      />
-    </View>
+          </>
+        )}
+      </BottomSheet>
+
+      <Modal visible={!!adding} animationType="slide" onRequestClose={() => setAdding(null)}>
+        {adding ? (
+          <LoginFlow
+            mode="modal"
+            initialSiteUrl={pending?.url}
+            initialNotice={pending?.notice || undefined}
+            onCancel={() => setAdding(null)}
+            onDone={() => setAdding(null)}
+          />
+        ) : null}
+      </Modal>
+    </>
   );
 }
 
-/** Only reachable by a long press (2 s) on the user's initials, in Settings or the menu. */
+/** Older name: Settings opens the same switcher. */
 export function ServerDialog({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  return visible ? <ServerDialogBody onClose={onClose} /> : null;
-}
-
-function ServerDialogBody({ onClose }: { onClose: () => void }) {
-  const sc = useServerChange(onClose);
-  return (
-    <Dialog
-      visible
-      onClose={onClose}
-      busy={sc.busy}
-      icon={{ name: 'server-outline' }}
-      title="Server"
-      actions={
-        <>
-          <Button label="Cancel" variant="outline" onPress={onClose} disabled={sc.busy} style={s.flex} />
-          <Button label="Change" onPress={sc.change} disabled={!sc.canChange} loading={sc.busy} style={s.flex} />
-        </>
-      }
-    >
-      <ServerPicker sc={sc} />
-    </Dialog>
-  );
+  return <SiteSwitcherSheet visible={visible} onClose={onClose} />;
 }
 
 const s = StyleSheet.create({
-  flex: { flex: 1 },
-  row: {
+  backRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44, alignSelf: 'flex-start' },
+  backText: { fontFamily: fontFamily.medium, fontSize: fontSize.md, color: COLORS.text },
+  addRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    minHeight: 56,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: spacing.sm,
+    borderStyle: 'dashed',
+    borderColor: COLORS.textMuted,
   },
-  rowSelected: { borderColor: COLORS.primary },
-  host: { fontFamily: fontFamily.semiBold, fontSize: fontSize.sm, color: COLORS.text },
-  sub: { fontFamily: fontFamily.regular, fontSize: fontSize.xs, color: COLORS.textMuted, marginTop: 2 },
+  addText: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.text },
+  footer: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border, paddingTop: spacing.sm },
+  footLink: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
+  footText: { flexShrink: 1, fontFamily: fontFamily.medium, fontSize: fontSize.md },
+  footMuted: { flexShrink: 1, fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textMuted },
 });

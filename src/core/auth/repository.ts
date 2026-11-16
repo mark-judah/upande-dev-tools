@@ -2,8 +2,10 @@ import { storage, StorageKeys } from '@/core/storage';
 import { api } from '@/core/api/client';
 import { loginRequest, probeBaseUrl } from './api';
 import { fetchCurrentUserRoles } from './roles-api';
-import { knownInstances } from './known-instances';
-import { clearServerData, isOtherServer } from './server-change';
+import { instanceLabel, knownInstances } from './known-instances';
+import { activateSite, isOtherServer } from './server-change';
+import { siteSessions } from './site-sessions';
+import { cleanSiteInput } from './site-check';
 
 /** The stock /api/method/login response's `full_name` is computed as
  *  `first_name + last_name` server-side (frappe/auth.py), which reads as an
@@ -39,11 +41,22 @@ function extractSidCookie(setCookie: string | null): string | null {
 }
 
 export const authRepository = {
+  /**
+   * Sign in to a site. Nothing about the live site changes until the server
+   * accepts the password: a wrong address, a wrong password or a dropped
+   * connection leaves the previous site and its session exactly as they were.
+   * On success the site's own session is saved, then the site becomes the live one.
+   */
   async login(email: string, password: string, bareUrl: string): Promise<LoginOutcome> {
-    const cleanUrl = bareUrl.trim().toLowerCase();
-    if (!cleanUrl) return { ok: false, error: 'URL required' };
+    const typed = cleanSiteInput(bareUrl);
+    if (!typed) return { ok: false, error: 'Enter the site address first.' };
 
-    const fullUrl = await probeBaseUrl(cleanUrl);
+    let fullUrl: string;
+    try {
+      fullUrl = await probeBaseUrl(typed);
+    } catch {
+      return { ok: false, error: `Couldn't reach ${instanceLabel(typed)}.` };
+    }
     const res = await loginRequest(fullUrl, email, password);
 
     if (res.status === 200) {
@@ -51,26 +64,20 @@ export const authRepository = {
       if (!cookie) {
         return {
           ok: false,
-          error: `${fullUrl} did not answer like a Frappe server with Upande Dev Tools installed. Check the address and port (the Frappe web port, not Metro's 8081).`,
+          error: `${instanceLabel(fullUrl)} did not answer like a Frappe server with Upande Dev Tools installed. Check the address and port (the Frappe web port, not Metro's 8081).`,
         };
       }
       let fullName = res.body.full_name || email;
-      // Another server's leftovers (station, roles, …) go before this one's are written.
       const switched = await isOtherServer(fullUrl);
-      if (switched) await clearServerData();
-      await Promise.all([
-        storage.set(StorageKeys.cookie, cookie),
-        storage.set(StorageKeys.instanceUrl, fullUrl),
-        storage.set(StorageKeys.instanceUrlBackup, fullUrl),
-        storage.set(StorageKeys.emailBackup, email),
-        storage.set(StorageKeys.fullName, fullName),
-        storage.set(StorageKeys.passwordBackup, password),
-      ]);
+      // This site's own session and password backup (keystore) first; then it goes live.
+      await siteSessions.setPassword(fullUrl, password);
+      const session = { cookie, roles: [] as string[], fullName: fullName as string | null, email };
+      await siteSessions.set(fullUrl, session);
+      await activateSite(fullUrl, { ...session, savedAt: Date.now() });
 
       // The login response's own full_name is often a blank string (see
-      // fetchRealFullName's comment) -- now that the cookie is stored, an
-      // authenticated follow-up can read the real field. Non-fatal: keeps
-      // the response's value (or email) if this fails or also comes back empty.
+      // fetchRealFullName's comment) -- now that the cookie is live, an
+      // authenticated follow-up can read the real field. Non-fatal.
       try {
         const real = await fetchRealFullName(email);
         if (real && real !== fullName) {
@@ -80,37 +87,42 @@ export const authRepository = {
       } catch {
         // ignore — greeting falls back to the login response's own value
       }
-      // After the real name is known, so the login screen can greet by name.
-      await knownInstances
-        .remember(fullUrl, email, fullName && fullName !== email ? fullName : null)
-        .catch(() => {});
 
-      // Fetch roles in the background. Failure is non-fatal — login still succeeds.
+      // Roles are non-fatal: login still succeeds and the UI treats none as "no special permissions".
       let roles: string[] = [];
-      // The previous account's roles never stand in for this one's.
-      await storage.remove(StorageKeys.userRoles).catch(() => {});
       try {
         roles = await fetchCurrentUserRoles();
         await storage.set(StorageKeys.userRoles, JSON.stringify(roles));
       } catch {
-        // ignore — UI will treat missing roles as "no special permissions"
+        // ignore
       }
+      await siteSessions.set(fullUrl, { cookie, roles, fullName, email });
+      await knownInstances
+        .remember(fullUrl, email, fullName && fullName !== email ? fullName : null)
+        .catch(() => {});
       return { ok: true, fullName, instanceUrl: fullUrl, roles, switched };
     }
 
     if (res.status === 401) {
-      return { ok: false, error: 'Username or Password is incorrect' };
+      return { ok: false, error: 'Email or password is incorrect.' };
     }
-
-    const message = res.body?.message ?? 'Login failed, Try again later';
+    if (res.status === 0) {
+      return { ok: false, error: `Couldn't reach ${instanceLabel(fullUrl)}. Check your connection and the address.` };
+    }
+    if (res.status === 503) {
+      return { ok: false, error: 'The server is being updated. Please try again in a few minutes.' };
+    }
+    const message = res.body?.message ?? 'Login failed, try again later.';
     return { ok: false, error: message };
   },
 
+  /** Wipe what the live site keeps in plain storage (sessions of saved sites are handled by the store). */
   async logout(): Promise<void> {
     await storage.clearExcept([
       StorageKeys.emailBackup,
       StorageKeys.instanceUrlBackup,
       StorageKeys.knownInstances,
+      StorageKeys.loginDraft,
     ]);
   },
 
@@ -122,19 +134,15 @@ export const authRepository = {
     return { email, url };
   },
 
-  /** Read every credential needed to silently re-authenticate after a biometric
-   *  prompt: email + password + URL. Returns nulls if any piece is missing. */
-  async loadFullCredentials(): Promise<{
+  /** Everything needed to re-authenticate one site after a biometric prompt.
+   *  Nulls when any piece is missing. */
+  async loadFullCredentials(url: string): Promise<{
     email: string | null;
     password: string | null;
     url: string | null;
   }> {
-    const [email, password, url] = await Promise.all([
-      storage.get(StorageKeys.emailBackup),
-      storage.get(StorageKeys.passwordBackup),
-      storage.get(StorageKeys.instanceUrlBackup),
-    ]);
-    return { email, password, url };
+    const [known, password] = await Promise.all([knownInstances.get(url), siteSessions.getPassword(url)]);
+    return { email: known?.email ?? null, password, url: known?.url ?? url };
   },
 
   async loadRoles(): Promise<string[]> {

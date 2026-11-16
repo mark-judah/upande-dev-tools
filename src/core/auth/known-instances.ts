@@ -16,10 +16,12 @@ export type KnownInstance = {
   email: string | null;
   /** Missing on entries saved before names were kept, until the next sign-in. */
   fullName?: string | null;
+  /** What the person calls this site ("Production", "My bench"); the host shows without one. */
+  nickname?: string | null;
   lastUsedAt: number;
 };
 
-const MAX_INSTANCES = 10;
+const MAX_INSTANCES = 30;
 
 /** `https://Foo.com/` and `foo.com` are the same instance. */
 export function instanceKey(url: string | null | undefined): string {
@@ -33,6 +35,11 @@ export function instanceKey(url: string | null | undefined): string {
 /** What the user sees: the host without the scheme. */
 export function instanceLabel(url: string): string {
   return String(url).replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+}
+
+/** The name a site goes by on screen: its nickname, else its host. */
+export function siteTitle(site: Pick<KnownInstance, 'url' | 'nickname'>): string {
+  return site.nickname?.trim() || instanceLabel(site.url);
 }
 
 /** Null when the list has never been written — distinct from emptied. */
@@ -75,8 +82,44 @@ export const knownInstances = {
   async remember(url: string, email: string | null, fullName: string | null = null): Promise<void> {
     const key = instanceKey(url);
     if (!key) return;
-    const rest = (await read()).filter((i) => instanceKey(i.url) !== key);
-    await write([{ url, email, fullName, lastUsedAt: Date.now() }, ...rest]);
+    const all = await read();
+    const prev = all.find((i) => instanceKey(i.url) === key);
+    const rest = all.filter((i) => instanceKey(i.url) !== key);
+    await write([
+      {
+        url,
+        email,
+        // A sign-in that could not read the name keeps the one already known.
+        fullName: fullName ?? prev?.fullName ?? null,
+        nickname: prev?.nickname ?? null,
+        lastUsedAt: Date.now(),
+      },
+      ...rest,
+    ]);
+  },
+
+  async get(url: string): Promise<KnownInstance | null> {
+    const key = instanceKey(url);
+    return (await read()).find((i) => instanceKey(i.url) === key) ?? null;
+  },
+
+  /** Bump a site to the top (entered it, switched to it). */
+  async touch(url: string): Promise<void> {
+    const key = instanceKey(url);
+    await write((await read()).map((i) => (instanceKey(i.url) === key ? { ...i, lastUsedAt: Date.now() } : i)));
+  },
+
+  /** Empty or blank clears the nickname. */
+  async rename(url: string, nickname: string): Promise<void> {
+    const key = instanceKey(url);
+    const name = nickname.trim().slice(0, 40);
+    await write(
+      (await read()).map((i) => (instanceKey(i.url) === key ? { ...i, nickname: name || null } : i)),
+    );
+  },
+
+  async clear(): Promise<void> {
+    await write([]);
   },
 
   async forget(url: string): Promise<KnownInstance[]> {

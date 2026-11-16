@@ -5,10 +5,13 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, fontFamily, fontSize, shadow, spacing } from '@/core/theme';
 import { useAuthStore } from '@/core/auth/store';
+import { showDialog } from '@/core/ui/DialogHost';
+import { instanceLabel } from '@/core/auth/known-instances';
 
 export default function BiometricLockScreen() {
   const biometricLogin = useAuthStore((s) => s.biometricLogin);
-  const forgetDevice = useAuthStore((s) => s.forgetDevice);
+  const signOutSite = useAuthStore((s) => s.signOutSite);
+  const instanceUrl = useAuthStore((s) => s.instanceUrl);
   const email = useAuthStore((s) => s.email);
   const fullName = useAuthStore((s) => s.fullName);
 
@@ -44,9 +47,25 @@ export default function BiometricLockScreen() {
     tryUnlock();
   }, [tryUnlock]);
 
-  const onForget = async () => {
-    await forgetDevice();
-    router.replace('/login');
+  // Signs out of this one site only, after asking: the fingerprint setup, the
+  // saved password and every other site stay as they are.
+  const onUsePassword = () => {
+    const site = instanceUrl ? instanceLabel(instanceUrl) : 'this site';
+    showDialog(
+      `Sign out of ${site}?`,
+      'To use your password you sign out of this site first. Your other sites and your fingerprint setup stay as they are.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: async () => {
+            await signOutSite();
+            router.replace('/login');
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -59,7 +78,9 @@ export default function BiometricLockScreen() {
           />
         </View>
         <Text style={s.title}>{fullName ?? email ?? 'Welcome back'}</Text>
-        <Text style={s.sub}>Sign in with biometrics to continue.</Text>
+        <Text style={s.sub}>
+          {instanceUrl ? `${instanceLabel(instanceUrl)}. ` : ''}Sign in with biometrics to continue.
+        </Text>
 
         <TouchableOpacity onPress={tryUnlock} disabled={busy} activeOpacity={0.8} style={s.fab}>
           {busy ? (
@@ -76,7 +97,7 @@ export default function BiometricLockScreen() {
           </View>
         ) : null}
 
-        <TouchableOpacity onPress={onForget} hitSlop={8} style={s.linkBtn}>
+        <TouchableOpacity onPress={onUsePassword} hitSlop={8} style={s.linkBtn}>
           <Text style={s.linkText}>Use password instead</Text>
         </TouchableOpacity>
       </View>
@@ -109,6 +130,6 @@ const s = StyleSheet.create({
     padding: spacing.md, borderRadius: 10, maxWidth: 320,
   },
   errorText: { flex: 1, fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.danger },
-  linkBtn: { marginTop: spacing.md, padding: spacing.sm },
+  linkBtn: { marginTop: spacing.md, minHeight: 44, paddingHorizontal: spacing.md, justifyContent: 'center' },
   linkText: { fontFamily: fontFamily.semiBold, fontSize: fontSize.sm, color: COLORS.primary },
 });

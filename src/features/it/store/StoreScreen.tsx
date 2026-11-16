@@ -5,8 +5,8 @@ import { Screen } from '@/core/ui/Screen';
 import { Card } from '@/core/ui/Card';
 import { Button } from '@/core/ui/Button';
 import { Skeleton } from '@/core/ui/Skeleton';
+import { getItEndpoint } from '@/core/it-source/it-client';
 import { useToast } from '@/core/ui/Toast';
-import { storage, StorageKeys } from '@/core/storage';
 import { followDevHost } from '@/core/api/dev-host';
 import { COLORS, borderRadius, fontFamily, fontSize, spacing } from '@/core/theme';
 import { mobileApi, post } from '@/features/it/shared/it-api';
@@ -29,7 +29,7 @@ function Store() {
   const download = async (a: StoreApp) => {
     setDlErr(null);
     try {
-      const base = await storage.get(StorageKeys.instanceUrl);
+      const base = (await getItEndpoint())?.baseUrl;
       if (!base) throw new Error('No server is set.');
       const url = `${followDevHost(base).replace(/\/$/, '')}/api/method/upande_mobile.api.store.download?app=${encodeURIComponent(a.app)}`;
       // Handed to the device browser or installer, never read into JS memory.

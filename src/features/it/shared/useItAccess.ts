@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { mapAxiosError } from '@/core/api/client';
 import { itUsers, type ItMeta } from './it-api';
+import { useItSource } from '@/core/it-source/it-source-store';
 
 type Status = 'unknown' | 'loading' | 'yes' | 'no' | 'error';
 
@@ -41,3 +42,13 @@ export const useItAccess = create<State>((set, get) => ({
   },
   reset: () => set({ status: 'unknown', isSystemManager: false, profiles: [], message: null }),
 }));
+
+// Changing or signing out of the IT data source means a different site: the access check starts over.
+let lastSource = useItSource.getState().source?.url ?? null;
+useItSource.subscribe((st) => {
+  const now = st.source?.url ?? null;
+  if (now !== lastSource) {
+    lastSource = now;
+    useItAccess.getState().reset();
+  }
+});
