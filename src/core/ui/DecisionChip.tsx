@@ -12,6 +12,8 @@ export function DecisionChip({ label, selected, disabled, onPress }: Props) {
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!selected, disabled: !!disabled }}
       style={({ pressed }) => [
         s.chip,
         selected ? s.chipSelected : null,

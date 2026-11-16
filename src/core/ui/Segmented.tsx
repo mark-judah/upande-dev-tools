@@ -72,6 +72,8 @@ export function Segmented<T extends string>({ value, options, onChange }: Segmen
             key={opt.value}
             onPress={() => onChange(opt.value)}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
             style={s.btn}
           >
             <Text style={[s.label, active && s.labelActive]} numberOfLines={1}>
@@ -107,7 +109,7 @@ const s = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 12,
     zIndex: 1,
   },
   label: { fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: COLORS.textMuted },

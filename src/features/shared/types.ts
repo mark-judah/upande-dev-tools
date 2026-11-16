@@ -35,5 +35,4 @@ export const NEXT_STAGE: Partial<Record<Stage, Stage>> = {
   Todo: 'In Progress',
   'In Progress': 'In Review',
   'In Review': 'Done',
-  Blocked: 'In Progress',
 };

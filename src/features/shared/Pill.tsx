@@ -24,5 +24,5 @@ export function priorityTone(p?: string | null): keyof typeof TONES {
 
 const s = StyleSheet.create({
   pill: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  text: { fontFamily: fontFamily.medium, fontSize: 11 },
+  text: { fontFamily: fontFamily.medium, fontSize: 12 },
 });

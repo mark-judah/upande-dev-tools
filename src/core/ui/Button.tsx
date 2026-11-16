@@ -48,6 +48,10 @@ export function Button({
   return (
     <Pressable
       onPress={isDisabled ? undefined : onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
+      hitSlop={sm ? { top: 6, bottom: 6 } : undefined}
       style={({ pressed }) => [
         s.btn,
         sm ? s.btnSm : null,

@@ -1,5 +1,5 @@
 import '../../src/mobile-kit';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,10 +11,9 @@ import 'react-native-reanimated';
 import { ToastProvider } from '@/core/ui/Toast';
 import { DialogHost } from '@/core/ui/DialogHost';
 import { OfflineBanner } from '@/core/ui/OfflineBanner';
-import { DrawerItemsProvider } from '@/core/ui/drawer-items-context';
 import { useAuthStore } from '@/core/auth/store';
 import { useNetworkStore } from '@/core/network/store';
-import { drawerFor } from '@/navigation';
+import { hasDevAccess } from '@/navigation';
 import { NotificationsHost } from '@/features/notifications/NotificationsHost';
 import { CaptureHost } from '@/features/capture/CaptureHost';
 import { MobileKitProvider } from '@upande/mobile-kit';
@@ -45,7 +44,7 @@ export default function RootLayout() {
     if (fontsLoaded && hydrated) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded, hydrated]);
 
-  const items = useMemo(() => drawerFor(roles ?? []), [roles]);
+  const allowed = hasDevAccess(roles ?? []);
 
   // Auth gate: login -> biometric lock -> (no-access | app).
   useEffect(() => {
@@ -59,12 +58,12 @@ export default function RootLayout() {
       if (first !== 'biometric-lock') router.replace('/biometric-lock' as never);
       return;
     }
-    if (items.length === 0) {
+    if (!allowed) {
       if (first !== 'no-access') router.replace('/no-access' as never);
       return;
     }
     if (first && PUBLIC_ROUTES.includes(first)) router.replace('/');
-  }, [hydrated, hasSession, biometricLocked, items.length, segments, router]);
+  }, [hydrated, hasSession, biometricLocked, allowed, segments, router]);
 
   if (!fontsLoaded || !hydrated) return null;
 
@@ -72,7 +71,6 @@ export default function RootLayout() {
     <MobileKitProvider>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <DrawerItemsProvider items={items}>
           <ToastProvider>
             <StatusBar style="dark" />
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
@@ -83,7 +81,6 @@ export default function RootLayout() {
             <NotificationsHost />
             <DialogHost />
           </ToastProvider>
-        </DrawerItemsProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
     </MobileKitProvider>

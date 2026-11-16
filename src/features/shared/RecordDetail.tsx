@@ -12,6 +12,7 @@ import { CommentThread } from '@/features/comments/CommentThread';
 import { useLoad } from './useLoad';
 import { Pill, priorityTone } from './Pill';
 import { NEXT_STAGE, TASK_STAGE, type Stage } from './types';
+import { useTaskActions } from '@/features/tasks/useTaskActions';
 
 type Doc = Record<string, string | null | undefined>;
 
@@ -38,15 +39,10 @@ export function RecordDetail({ doctype }: { doctype: 'Task' | 'Request' }) {
   const stage: Stage | undefined = isTask && data?.status ? TASK_STAGE[data.status] : undefined;
   const next = stage ? NEXT_STAGE[stage] : undefined;
 
+  const { setStage } = useTaskActions();
   const move = async () => {
-    if (!next) return;
-    try {
-      await call('board.set_stage', { doctype: 'Task', name, stage: next });
-      toast.showSuccess(next === 'Done' ? 'Task closed' : `Moved to ${next}`);
-      reload();
-    } catch (e) {
-      toast.showError(mapAxiosError(e).message);
-    }
+    if (!next || !stage) return;
+    if (await setStage(name, stage, next)) reload();
   };
 
   const promote = async () => {

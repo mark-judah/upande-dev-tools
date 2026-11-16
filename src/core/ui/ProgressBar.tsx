@@ -8,17 +8,21 @@ type Props = {
   height?: number;
   /** The value that fills the track. Default 1.5 (packhouse: 1 = target, the track holds 150%). Pass 1 for a plain 0..1 progress bar. */
   scale?: number;
+  /** For dark surfaces. */
+  trackColor?: string;
+  fillColor?: string;
 };
 
-export function ProgressBar({ value, exceeded, height = 6, scale = 1.5 }: Props) {
+export function ProgressBar({ value, exceeded, height = 6, scale = 1.5, trackColor, fillColor }: Props) {
   const clamped = Math.max(0, Math.min(value, scale));
   const widthPct = (clamped / scale) * 100;
   return (
-    <View style={[s.track, { height, borderRadius: height / 2 }]}>
+    <View style={[s.track, { height, borderRadius: height / 2 }, trackColor ? { backgroundColor: trackColor } : null]}>
       <View
         style={[
           s.fill,
           { width: `${widthPct}%`, height, borderRadius: height / 2 },
+          fillColor ? { backgroundColor: fillColor } : null,
           exceeded ? s.fillExceeded : null,
         ]}
       />

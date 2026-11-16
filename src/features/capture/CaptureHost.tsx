@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { FAB } from '@/core/ui/FAB';
+import { useCaptureUi } from './capture-ui';
 import { BottomSheet } from '@/core/ui/Dialog';
 import { Button } from '@/core/ui/Button';
 import { DecisionChip } from '@/core/ui/DecisionChip';
@@ -19,13 +19,13 @@ export function CaptureHost() {
   const hasSession = useAuthStore((s) => s.hasSession);
   const locked = useAuthStore((s) => s.biometricLocked);
   const online = useNetworkStore((s) => s.online);
-  const queued = useCaptureQueue((s) => s.queue.length);
   const submit = useCaptureQueue((s) => s.submit);
   const flush = useCaptureQueue((s) => s.flush);
   const hydrate = useCaptureQueue((s) => s.hydrate);
   const toast = useToast();
 
-  const [open, setOpen] = useState(false);
+  const open = useCaptureUi((s) => s.open);
+  const setOpen = useCaptureUi((s) => s.setOpen);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<RequestType>('Note');
   const [details, setDetails] = useState('');
@@ -75,12 +75,6 @@ export function CaptureHost() {
 
   return (
     <>
-      {queued > 0 ? (
-        <Pressable style={s.pill} onPress={() => flush()}>
-          <Text style={s.pillText}>{queued} waiting to sync</Text>
-        </Pressable>
-      ) : null}
-      <FAB icon="add" expanded={open} onPress={() => setOpen((v) => !v)} />
       <BottomSheet visible={open} onClose={close} title="Quick capture" busy={busy}>
         <LabeledInput
           label="What is it?"
@@ -113,14 +107,4 @@ const s = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginVertical: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   rowText: { fontFamily: fontFamily.medium, fontSize: fontSize.md, color: COLORS.text },
-  pill: {
-    position: 'absolute',
-    bottom: 96,
-    right: spacing.lg,
-    backgroundColor: COLORS.text,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  pillText: { color: '#fff', fontFamily: fontFamily.medium, fontSize: fontSize.xs },
 });

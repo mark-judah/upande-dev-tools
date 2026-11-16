@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 
@@ -7,16 +7,32 @@ export function Card({
   title,
   children,
   style,
+  onPress,
+  accessibilityLabel,
 }: {
   title?: string;
   children: ReactNode;
   style?: ViewStyle;
+  /** Makes the whole card a button with a pressed state. */
+  onPress?: () => void;
+  accessibilityLabel?: string;
 }) {
-  return (
-    <View style={[s.card, style]}>
+  const inner = (
+    <>
       {title ? <Text style={s.title}>{title}</Text> : null}
       {children}
-    </View>
+    </>
+  );
+  if (!onPress) return <View style={[s.card, style]}>{inner}</View>;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => [s.card, style, pressed && { backgroundColor: COLORS.bgMuted }]}
+    >
+      {inner}
+    </Pressable>
   );
 }
 

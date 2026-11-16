@@ -68,7 +68,8 @@ export function DeploymentsScreen() {
   const counts = data?.counts_by_state ?? {};
   return (
     <Screen
-      title="Deployments"
+      tab
+      title="Ship"
       loading={loading && !data}
       error={!data ? error : null}
       onRetry={reload}

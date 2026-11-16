@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Button } from './Button';
-import { SideMenu } from './SideMenu';
+import { router } from 'expo-router';
 
 type Props = {
   title?: string;
@@ -22,7 +22,10 @@ type Props = {
   error?: string | null;
   onRetry?: () => void;
   onRefresh?: () => Promise<void> | void;
-  hideMenu?: boolean;
+  /** A root tab screen: left-aligned title, no back button. Pushed screens get a back button. */
+  tab?: boolean;
+  /** Pushed screens: where Back goes when there is no history (e.g. opened from a notification). */
+  backFallback?: string;
   /** When false, the body is rendered as a flex View (no scroll). Default true. */
   scroll?: boolean;
   contentPadded?: boolean;
@@ -40,7 +43,8 @@ export function Screen({
   error,
   onRetry,
   onRefresh,
-  hideMenu,
+  tab,
+  backFallback = '/',
   scroll = true,
   contentPadded = true,
   children,
@@ -48,7 +52,6 @@ export function Screen({
   headerRight,
 }: Props) {
   const [refreshing, setRefreshing] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleRefresh = onRefresh
     ? async () => {
@@ -115,24 +118,22 @@ export function Screen({
     <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
       {title ? (
         <View style={s.header}>
-          {!hideMenu ? (
+          {tab ? null : (
             <Pressable
-              onPress={() => setMenuOpen(true)}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace(backFallback as never))}
               hitSlop={10}
               style={s.menuBtn}
-              accessibilityLabel="Open menu"
+              accessibilityRole="button"
+              accessibilityLabel="Back"
             >
-              <Ionicons name="menu-outline" size={24} color={COLORS.text} />
+              <Ionicons name="chevron-back" size={26} color={COLORS.text} />
             </Pressable>
-          ) : (
-            <View style={s.menuBtn} />
           )}
-          <Text style={s.title} numberOfLines={1}>{title}</Text>
-          {/* Symmetric spacer keeps the title centred when there's no custom action */}
-          {headerRight ?? <View style={s.menuBtn} />}
+          <Text style={[s.title, tab && s.titleTab]} numberOfLines={1} accessibilityRole="header">{title}</Text>
+          {/* Symmetric spacer keeps the title centred on pushed screens when there is no action */}
+          {headerRight ?? (tab ? null : <View style={s.menuBtn} />)}
         </View>
       ) : null}
-      {!hideMenu ? <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} /> : null}
       {scroll && !loading && !error ? (
         // KeyboardAwareScrollView above already handles keyboard avoidance --
         // wrapping it in KeyboardAvoidingView too double-compensates on iOS.
@@ -157,12 +158,13 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 56,
     backgroundColor: COLORS.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
   },
-  menuBtn: { width: 32, alignItems: 'center', justifyContent: 'center', padding: 4 },
+  menuBtn: { width: 44, height: 44, marginLeft: -spacing.sm, alignItems: 'center', justifyContent: 'center' },
   title: {
     flex: 1,
     textAlign: 'center',
@@ -170,6 +172,7 @@ const s = StyleSheet.create({
     fontSize: fontSize.lg,
     color: COLORS.text,
   },
+  titleTab: { textAlign: 'left', fontFamily: fontFamily.bold, fontSize: fontSize.xl },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
   errorTitle: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.danger },
