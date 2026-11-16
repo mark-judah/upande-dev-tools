@@ -1,139 +1,219 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/core/ui/Card';
-import { Button } from '@/core/ui/Button';
+import { Skeleton } from '@/core/ui/Skeleton';
 import { useAuthStore } from '@/core/auth/store';
 import { mapAxiosError } from '@/core/api/client';
-import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { Avatar } from '@/features/detail/parts';
+import { LinkText } from '@/features/detail/html';
+import { ago, fullDate, localStamp } from '@/features/detail/format';
 import { addComment, getComments, type Comment } from './comments-api';
 
 type Row = Comment & { pending?: boolean; failed?: boolean };
 
-const plain = (html: string) => html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+/** Kept for existing imports. Frappe timestamps are server-local strings, so this is `ago`. */
+export const relativeTime = (creation: string, now = Date.now()) => ago(creation, now);
 
-/** "just now", "5m ago", "3h ago", "2d ago", else the date. Frappe timestamps are server-local. */
-export function relativeTime(creation: string, now = Date.now()): string {
-  const t = new Date(creation.replace(' ', 'T')).getTime();
-  if (Number.isNaN(t)) return creation;
-  const mins = Math.floor((now - t) / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
-  if (mins < 10080) return `${Math.floor(mins / 1440)}d ago`;
-  return new Date(t).toLocaleDateString();
-}
-
-/** Comment list and composer for a record. Bump `refreshKey` to reload (pull-to-refresh lives in the parent). */
-export function CommentThread({ doctype, name, refreshKey = 0 }: { doctype: string; name: string; refreshKey?: number }) {
+/** Loads and posts comments for a record. Local rows (sending or failed) stay under the server's. */
+export function useComments(doctype: string, name: string, onSent?: () => void) {
   const email = useAuthStore((s) => s.email);
   const [rows, setRows] = useState<Row[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
   const seq = useRef(0);
+  const inputRef = useRef<TextInputInstance>(null);
 
   const load = useCallback(async () => {
     const mine = ++seq.current;
     try {
       const list = await getComments(doctype, name);
       if (mine !== seq.current) return;
-      // Keep unsent/failed local rows below the server's.
       setRows((prev) => [...list, ...prev.filter((r) => r.pending || r.failed)]);
       setError(null);
     } catch (e) {
       if (mine === seq.current) setError(mapAxiosError(e).message);
+    } finally {
+      if (mine === seq.current) setLoaded(true);
     }
   }, [doctype, name]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
-  }, [load, refreshKey]);
+  }, [load]);
 
-  const send = async (id: string, body: string) => {
-    setRows((prev) => prev.map((r) => (r.name === id ? { ...r, pending: true, failed: false } : r)));
-    try {
-      await addComment(doctype, name, body);
-      setRows((prev) => prev.filter((r) => r.name !== id));
-      load();
-    } catch {
-      setRows((prev) => prev.map((r) => (r.name === id ? { ...r, pending: false, failed: true } : r)));
-    }
-  };
+  const send = useCallback(
+    async (id: string, body: string) => {
+      setRows((prev) => prev.map((r) => (r.name === id ? { ...r, pending: true, failed: false } : r)));
+      try {
+        await addComment(doctype, name, body);
+        setRows((prev) => prev.filter((r) => r.name !== id));
+        await load();
+        onSent?.();
+      } catch {
+        setRows((prev) => prev.map((r) => (r.name === id ? { ...r, pending: false, failed: true } : r)));
+      }
+    },
+    [doctype, name, load, onSent],
+  );
 
-  const submit = () => {
+  const submit = useCallback(() => {
     const body = text.trim();
     if (!body) return;
     const id = `local-${Date.now()}`;
     setRows((prev) => [
       ...prev,
-      { name: id, content: body, comment_by: email ?? '', full_name: 'You', creation: new Date().toISOString(), pending: true },
+      { name: id, content: body, comment_by: email ?? '', full_name: 'You', creation: localStamp(), pending: true },
     ]);
     setText('');
+    onSent?.();
     send(id, body);
-  };
+  }, [text, email, send, onSent]);
 
+  return { rows, loaded, error, text, setText, submit, send, reload: load, inputRef, email };
+}
+
+type Thread = ReturnType<typeof useComments>;
+
+/** The thread itself: sits inside the page's scroll view. */
+export function CommentList({ thread }: { thread: Thread }) {
+  const { rows, loaded, error, email, send, reload, inputRef } = thread;
   return (
-    <Card title="Comments">
-      {error ? <Text style={s.error}>{error}</Text> : null}
-      {rows.length === 0 && !error ? <Text style={s.muted}>No comments yet.</Text> : null}
-      {rows.map((r) => {
+    <Card title={rows.length ? `Comments (${rows.length})` : 'Comments'}>
+      {error ? (
+        <Pressable onPress={reload} accessibilityRole="button" style={s.errorBox}>
+          <Text style={s.error}>{error}</Text>
+          <Text style={s.retry}>Tap to retry</Text>
+        </Pressable>
+      ) : null}
+      {!loaded && !error ? (
+        <View style={{ gap: spacing.md }}>
+          <Skeleton height={14} />
+          <Skeleton width="70%" height={14} />
+        </View>
+      ) : null}
+      {loaded && rows.length === 0 && !error ? (
+        <Pressable onPress={() => inputRef.current?.focus()} accessibilityRole="button" accessibilityLabel="Write the first comment" style={s.empty}>
+          <Ionicons name="chatbubble-ellipses-outline" size={30} color={COLORS.textMuted} />
+          <Text style={s.emptyTitle}>No comments yet</Text>
+          <Text style={s.emptyText}>Ask a question or leave an update. Be the first to write something.</Text>
+        </Pressable>
+      ) : null}
+      {rows.map((r, i) => {
         const mine = !!email && r.comment_by === email;
+        const who = mine ? 'You' : r.full_name || r.comment_by;
         return (
-          <View key={r.name} style={[s.item, mine ? s.itemMine : s.itemTheirs]}>
-            <View style={[s.bubble, mine ? s.bubbleMine : s.bubbleTheirs, r.pending && s.dim]}>
-              {!mine ? <Text style={s.who}>{r.full_name || r.comment_by}</Text> : null}
-              <Text style={[s.body, mine && s.bodyMine]}>{plain(r.content)}</Text>
+          <View key={r.name} style={[s.item, i > 0 && s.itemBorder, r.pending && s.dim]}>
+            <Avatar name={who} size={32} />
+            <View style={s.itemBody}>
+              <View style={s.head}>
+                <Text style={s.who} numberOfLines={1}>{who}</Text>
+                {r.failed ? (
+                  <Pressable onPress={() => send(r.name, r.content)} accessibilityRole="button" accessibilityLabel="Retry sending" style={s.retryBtn}>
+                    <Text style={s.retry} numberOfLines={1}>Not sent. Tap to retry</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={s.time} numberOfLines={1} accessibilityLabel={fullDate(r.creation)}>{r.pending ? 'Sending...' : ago(r.creation)}</Text>
+                )}
+              </View>
+              <LinkText text={r.content} style={s.body} />
             </View>
-            {r.failed ? (
-              <Pressable onPress={() => send(r.name, r.content)} accessibilityRole="button">
-                <Text style={s.retry}>Not sent. Tap to retry</Text>
-              </Pressable>
-            ) : (
-              <Text style={s.time}>{r.pending ? 'Sending...' : relativeTime(r.creation)}</Text>
-            )}
           </View>
         );
       })}
+    </Card>
+  );
+}
+
+/** The input, pinned under the page. Return sends (Shift+Return adds a line on web). */
+export function CommentComposer({ thread }: { thread: Thread }) {
+  const { text, setText, submit, inputRef } = thread;
+  const insets = useSafeAreaInsets();
+  const can = !!text.trim();
+  return (
+    <View style={[s.composer, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
       <TextInput
+        ref={inputRef}
         style={s.input}
         value={text}
         onChangeText={setText}
         placeholder="Write a comment"
         placeholderTextColor={COLORS.textMuted}
         multiline
+        numberOfLines={1}
         maxLength={2000}
+        returnKeyType="send"
+        submitBehavior="submit"
+        onSubmitEditing={submit}
+        accessibilityLabel="Write a comment"
       />
-      <Button label="Send" onPress={submit} disabled={!text.trim()} />
-    </Card>
+      <Pressable
+        onPress={submit}
+        disabled={!can}
+        accessibilityRole="button"
+        accessibilityLabel="Send comment"
+        accessibilityState={{ disabled: !can }}
+        style={({ pressed }) => [s.send, !can && { opacity: 0.35 }, pressed && { opacity: 0.8 }]}
+      >
+        <Ionicons name="arrow-up" size={22} color="#fff" />
+      </Pressable>
+    </View>
+  );
+}
+
+/** Self-contained list plus inline composer, for screens that do not pin the composer. */
+export function CommentThread({ doctype, name }: { doctype: string; name: string; refreshKey?: number }) {
+  const thread = useComments(doctype, name);
+  return (
+    <>
+      <CommentList thread={thread} />
+      <CommentComposer thread={thread} />
+    </>
   );
 }
 
 const s = StyleSheet.create({
-  muted: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textMuted },
-  error: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.danger, marginBottom: spacing.sm },
-  item: { marginBottom: spacing.sm, maxWidth: '85%' },
-  itemMine: { alignSelf: 'flex-end', alignItems: 'flex-end' },
-  itemTheirs: { alignSelf: 'flex-start', alignItems: 'flex-start' },
-  bubble: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.md },
-  bubbleMine: { backgroundColor: COLORS.primary },
-  bubbleTheirs: { backgroundColor: COLORS.bgMuted },
-  dim: { opacity: 0.6 },
-  who: { fontFamily: fontFamily.semiBold, fontSize: fontSize.xs, color: COLORS.textSecondary, marginBottom: 2 },
-  body: { fontFamily: fontFamily.regular, fontSize: fontSize.md, color: COLORS.text },
-  bodyMine: { color: COLORS.textOnPrimary },
-  time: { fontFamily: fontFamily.regular, fontSize: fontSize.xs, color: COLORS.textMuted, marginTop: 2 },
-  retry: { fontFamily: fontFamily.semiBold, fontSize: fontSize.xs, color: COLORS.danger, marginTop: 2 },
+  item: { flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+  itemBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border },
+  itemBody: { flex: 1, gap: 2 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  who: { flexShrink: 1, fontFamily: fontFamily.semiBold, fontSize: fontSize.sm, color: COLORS.text },
+  time: { flexShrink: 0, fontFamily: fontFamily.regular, fontSize: fontSize.xs, color: COLORS.textMuted },
+  body: { fontFamily: fontFamily.regular, fontSize: fontSize.md, lineHeight: 21, color: COLORS.text },
+  dim: { opacity: 0.55 },
+  errorBox: { minHeight: 44, justifyContent: 'center', marginBottom: spacing.sm },
+  error: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.danger },
+  retryBtn: { minHeight: 32, justifyContent: 'center' },
+  retry: { fontFamily: fontFamily.semiBold, fontSize: fontSize.xs, color: COLORS.danger },
+  empty: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.lg },
+  emptyTitle: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.text, marginTop: spacing.xs },
+  emptyText: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textMuted, textAlign: 'center' },
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+  },
   input: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
+    flex: 1,
     minHeight: 44,
     maxHeight: 120,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderRadius: 22,
+    backgroundColor: COLORS.bgMuted,
     fontFamily: fontFamily.regular,
     fontSize: fontSize.md,
     color: COLORS.text,
   },
+  send: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.text, alignItems: 'center', justifyContent: 'center' },
 });

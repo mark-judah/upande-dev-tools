@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
 import { Screen } from '@/core/ui/Screen';
@@ -69,7 +69,21 @@ export function ActivityScreen() {
     fetchPage(rows.length);
   };
 
-  const shown = type ? rows.filter((r) => r.activity_type === type) : rows;
+  // Collapse runs of identical entries (a backup check every few minutes) into one row with a count.
+  const shown = useMemo(() => {
+    const list = type ? rows.filter((r) => r.activity_type === type) : rows;
+    const out: (Row & { count: number; first: string })[] = [];
+    for (const r of list) {
+      const last = out[out.length - 1];
+      if (last && last.title === r.title && last.status === r.status && last.activity_type === r.activity_type && last.description === r.description) {
+        last.count += 1;
+        last.first = r.activity_time;
+      } else {
+        out.push({ ...r, count: 1, first: r.activity_time });
+      }
+    }
+    return out;
+  }, [rows, type]);
 
   return (
     <Screen title="Activity" error={rows.length === 0 && !loading ? error : null} onRetry={reload} onRefresh={reload}>
@@ -93,7 +107,9 @@ export function ActivityScreen() {
               </View>
               {r.description ? <Text style={s.desc} numberOfLines={3}>{r.description}</Text> : null}
               <Text style={s.muted}>
-                {r.activity_type} · {rel(r.activity_time)}{r.performed_by ? ` · ${r.performed_by}` : ''}
+                {r.activity_type} · {rel(r.activity_time)}
+                {r.count > 1 ? ` · ${r.count} times since ${rel(r.first)}` : ''}
+                {r.performed_by && r.count === 1 ? ` · ${r.performed_by}` : ''}
               </Text>
             </Card>
           ))}

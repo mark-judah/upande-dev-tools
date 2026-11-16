@@ -15,6 +15,7 @@ import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Pill } from '@/features/shared/Pill';
 import { NEXT_STAGE, type TaskRow } from '@/features/shared/types';
 import { useAchievements } from '@/features/gamification/achievements-store';
+import { BadgeScroller, Collapsible, MiniLeaderboard, ProgressCard, UnlockCard, useBadgeUnlocks } from '@/features/gamification/achievements-ui';
 import { useCaptureUi } from '@/features/capture/capture-ui';
 import { useTaskActions } from '@/features/tasks/useTaskActions';
 import { isOverdue, stageOf, useMyDay } from './my-day-store';
@@ -35,6 +36,8 @@ export function MyDayScreen() {
   const loadStats = useAchievements((s) => s.load);
   const hydrateStats = useAchievements((s) => s.hydrate);
   const fullName = useAuthStore((s) => s.fullName);
+  const email = useAuthStore((s) => s.email);
+  const { unlocked, dismiss: dismissUnlock } = useBadgeUnlocks(stats);
   const setCaptureOpen = useCaptureUi((s) => s.setOpen);
   const { advance } = useTaskActions();
 
@@ -137,6 +140,7 @@ export function MyDayScreen() {
 
   return (
     <Screen tab title="Today" headerRight={streakPill} onRefresh={async () => { lastLoad.current = Date.now(); await Promise.all([load(), loadStats().catch(() => null)]); }} error={!data ? error : null} onRetry={load}>
+      <UnlockCard badges={unlocked} onDismiss={dismissUnlock} />
       <Text style={s.hello}>Hi {firstName}, it is {format(new Date(), 'EEEE d MMMM')}</Text>
 
       {firstLoad ? (
@@ -147,7 +151,7 @@ export function MyDayScreen() {
             <Skeleton height={76} style={{ flex: 1, borderRadius: 20 }} />
             <Skeleton height={76} style={{ flex: 1, borderRadius: 20 }} />
           </View>
-          <Skeleton height={64} />
+          <Skeleton height={150} style={{ borderRadius: 24 }} />
           <Skeleton height={64} />
           <Skeleton height={64} />
         </View>
@@ -168,6 +172,8 @@ export function MyDayScreen() {
             <Tile label="IN REVIEW" value={reviewN} onPress={() => goWork('review')} />
             <Tile label="TOMORROW" value={tomorrowN} onPress={() => goWork('tomorrow')} />
           </View>
+
+          {stats ? <ProgressCard data={stats} onSeeAll={() => router.push('/achievements' as never)} /> : <Skeleton height={150} style={{ borderRadius: 24, marginBottom: spacing.md }} />}
 
           {nextMeeting ? (
             <Card style={s.meeting}>
@@ -210,6 +216,17 @@ export function MyDayScreen() {
             </Card>
           ))}
 
+          {stats ? (
+            <>
+              <Collapsible title="Badges" meta={`${stats.badges.filter((b) => b.earned).length}/${stats.badges.length}`} defaultOpen>
+                <BadgeScroller badges={stats.badges} />
+              </Collapsible>
+              <Collapsible title="Top contributors this week">
+                <MiniLeaderboard board={stats.leaderboard} email={email} />
+              </Collapsible>
+            </>
+          ) : null}
+
           {tasks.length > 0 && dueToday === 0 && overdueN === 0 ? (
             <Text style={s.calm}>Nothing is due today. Pick something from the backlog when you are ready.</Text>
           ) : null}
@@ -233,15 +250,15 @@ const s = StyleSheet.create({
   streak: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: spacing.sm },
   streakText: { fontFamily: fontFamily.bold, fontSize: fontSize.md, color: COLORS.text },
   streakPts: { fontFamily: fontFamily.medium, fontSize: fontSize.xs, color: COLORS.textMuted },
-  hero: { backgroundColor: '#052E16', borderRadius: 24, padding: spacing.lg, marginBottom: spacing.sm, overflow: 'hidden', gap: spacing.xs },
+  hero: { backgroundColor: '#052E16', borderRadius: 24, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, marginBottom: spacing.sm, overflow: 'hidden', gap: 2 },
   heroGhost: { position: 'absolute', right: -10, top: -10 },
   chip: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 1.2, color: '#86EFAC' },
-  heroNum: { fontFamily: fontFamily.bold, fontSize: 44, color: '#fff', lineHeight: 52 },
+  heroNum: { fontFamily: fontFamily.bold, fontSize: 36, color: '#fff', lineHeight: 42 },
   heroSub: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: '#BBF7D0' },
   tiles: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-  tile: { flex: 1, minHeight: 76, backgroundColor: COLORS.text, borderRadius: 20, padding: spacing.md, justifyContent: 'space-between' },
+  tile: { flex: 1, minHeight: 64, backgroundColor: COLORS.text, borderRadius: 20, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'space-between' },
   tileHot: { backgroundColor: '#3B0A0A' },
-  tileNum: { fontFamily: fontFamily.bold, fontSize: 26, color: '#fff' },
+  tileNum: { fontFamily: fontFamily.bold, fontSize: 24, color: '#fff' },
   task: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 64 },
   taskDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border },
   taskBody: { flex: 1, paddingVertical: spacing.sm, gap: 4 },
