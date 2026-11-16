@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/core/auth/store';
@@ -39,7 +39,8 @@ export function NotificationsHost() {
   const enabled = useNotificationStore((s) => s.enabled);
   const hydrate = useNotificationStore((s) => s.hydrate);
   const toast = useToast();
-  const ready = hasSession && !locked;
+  // Push is native only: the web build (used for previews) has no notification module.
+  const ready = hasSession && !locked && Platform.OS !== 'web';
 
   useEffect(() => {
     hydrate();

@@ -143,3 +143,21 @@ dark mode tokens, 44 px targets and roles/labels, relative dates, one vocabulary
 
 Each phase ends with `tsc`, lint, a live API check and a Metro bundle; screens are screenshot-verified in a
 phone-sized browser once the web preview runs.
+
+## 7. Confirmed visually (phone-size web preview against the live local site)
+
+Screens were screenshot at 390x844 after signing in; these findings come from the rendered output, not the code.
+
+- **Two floating buttons collide with content.** The kit's Settings gear and the capture FAB both float bottom-right.
+  They cover the right edge of list cards, and on Deployments the capture FAB sits on top of the "Request deployment"
+  footer button. The kit gear duplicates Settings and should be turned off (`fab: false`) in favour of a real entry.
+- **"Requeste/d" wraps** in the Deployments count tile ("In Progress" wraps too): four tiles across are too narrow for
+  13 px labels.
+- **The overdue signal is worthless on this data.** The Backlog "Active" list is a wall of identical red Urgent/Overdue
+  pills (most of 300+ open tasks are overdue), so nothing stands out. It needs grouping by bucket (overdue / today /
+  next), counts, and "overdue by N days" instead of a repeated pill and a raw date.
+- **Rows carry no information beyond title and pills**: no project, stage or assignee; task rows are ~95 px tall, so
+  about 6 tasks per screen.
+- **Deployment cards show a future date** (2027-03-08) and raw timestamps; the record id competes with the date.
+- **The web build crashed on launch** because the notification host called a native-only API. Fixed (guarded on
+  `Platform.OS === 'web'`), which also unlocks screenshot-based review of every screen.
