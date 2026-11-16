@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,7 +26,7 @@ export function SideMenu() {
   const { width } = useWindowDimensions();
   const drawerWidth = Math.min(Math.max(width * 0.82, 260), 340);
 
-  const slide = useRef(new Animated.Value(-drawerWidth)).current;
+  const [slide] = useState(() => new Animated.Value(-340));
   const [mounted, setMounted] = useState(false);
   const [serverOpen, setServerOpen] = useState(false);
 
