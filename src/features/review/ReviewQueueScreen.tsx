@@ -337,7 +337,7 @@ export function ReviewQueueScreen() {
             const sw = swipes(item);
             return (
               <View style={rowWrap}>
-                <SwipeRow swipeRight={sw.right} swipeLeft={sw.left} disabled={selecting}>
+                <SwipeRow radius={borderRadius.md} swipeRight={sw.right} swipeLeft={sw.left} disabled={selecting}>
                   <TriageRow
                     item={item}
                     description={data?.descriptions[item.name]}

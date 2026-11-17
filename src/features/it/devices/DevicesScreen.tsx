@@ -177,6 +177,7 @@ function FleetList() {
               ) : (
                 <View style={s.cell}>
                   <SwipeRow
+                    radius={borderRadius.md}
                     swipeRight={item.d.state !== 'Active' ? { label: 'Active', icon: 'checkmark-circle', color: COLORS.success, onTrigger: () => { setDeviceState(item.d, 'Active').catch((e) => toast.showError(String(e?.message ?? 'Could not update'))); } } : undefined}
                     swipeLeft={item.d.state === 'Active' ? { label: 'Lost', icon: 'alert-circle', color: COLORS.danger, onTrigger: () => setLost(item.d) } : undefined}
                   >
@@ -210,7 +211,7 @@ const s = StyleSheet.create({
   input: { flex: 1, fontFamily: fontFamily.regular, fontSize: fontSize.md, color: COLORS.text, minHeight: 44 },
   strip: { gap: spacing.sm, paddingRight: spacing.lg },
   count: { fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: COLORS.textMuted },
-  cell: { marginHorizontal: spacing.lg, marginBottom: spacing.md, borderRadius: borderRadius.md, overflow: 'hidden' },
+  cell: { marginHorizontal: spacing.lg, marginBottom: spacing.md },
   group: { fontFamily: fontFamily.semiBold, fontSize: fontSize.sm, color: COLORS.textSecondary, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.4 },
   empty: { alignItems: 'center', gap: spacing.sm, padding: spacing.xxl },
   emptyT: { fontFamily: fontFamily.semiBold, fontSize: fontSize.lg, color: COLORS.text },
