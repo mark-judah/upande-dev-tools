@@ -1,9 +1,10 @@
 import axios, { isAxiosError } from 'axios';
-import { useItSource, type ItSource } from './it-source-store';
+import { useItInstances } from './instances-store';
+import type { ItInstance } from './instances-model';
 
 export type ConnectStep = 'checking' | 'signing_in' | 'verifying';
 
-export type ConnectResult = { ok: true; source: ItSource } | { ok: false; error: string; step: ConnectStep };
+export type ConnectResult = { ok: true; instance: ItInstance } | { ok: false; error: string; step: ConnectStep };
 
 const MOBILE_LOGIN = 'upande_dev_tools.api.mobile_auth.mobile_login';
 const META = 'upande_core.it_dashboard.usermgmt.meta';
@@ -53,11 +54,11 @@ function sidFromSetCookie(h: unknown): string | null {
 }
 
 /**
- * Signs in to a site for the IT tools only (a second session, separate from the main one):
+ * Signs in to an IT instance (a session separate from the app's main one):
  * 1) reach the site, 2) log in (the dev tools mobile login when the site has it, otherwise the standard login),
  * 3) confirm this account is allowed to use the IT dashboard there. Nothing is saved unless all three pass.
  */
-export async function connectItSource(
+export async function connectInstance(
   rawUrl: string,
   email: string,
   password: string,
@@ -119,7 +120,7 @@ export async function connectItSource(
     return { ok: false, step: 'verifying', error: friendly(e) };
   }
 
-  const source: ItSource = { url: base, email, fullName, connectedAt: Date.now() };
-  await useItSource.getState().connect(source, cookie);
-  return { ok: true, source };
+  // Saved (and made active) only now that all three checks passed. Re-signing in to a saved instance refreshes it.
+  const instance = await useItInstances.getState().add({ url: base, email, fullName }, cookie);
+  return { ok: true, instance };
 }
