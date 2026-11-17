@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { router, useSegments } from 'expo-router';
 import { useAuthStore } from '@/core/auth/store';
@@ -114,7 +114,10 @@ export function NotificationsHost() {
       try {
         const last = await N.getLastNotificationResponseAsync();
         onTap(last);
-        if (last) await N.clearLastNotificationResponseAsync();
+        // Support replies are left for the kit, which reads the same launch tap to open its chat.
+        if (last && payloadData(last.notification?.request?.content?.data)?.upande_mobile !== 'support') {
+          await N.clearLastNotificationResponseAsync();
+        }
       } catch {
         // Older native side: nothing to recover.
       }
@@ -123,12 +126,17 @@ export function NotificationsHost() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The inbox follows whoever is signed in: their cache at once, then the server. Signing out clears it.
+  // The inbox follows whoever is signed in: their cache at once, then the server. Signing out clears it, and drops a
+  // tap still waiting (it was meant for the person who just left). A tap that cold-started a signed-out app is kept
+  // and opens after sign-in.
+  const prevOwner = useRef<string | null>(null);
   useEffect(() => {
     if (!hydrated) return;
+    const before = prevOwner.current;
+    prevOwner.current = owner;
     if (!owner) {
       void useInbox.getState().clear();
-      usePendingOpen.getState().clear();
+      if (before) usePendingOpen.getState().clear();
       return;
     }
     if (locked) return;
