@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { memo, useCallback, useEffect, useState } from 'react';
+import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/core/ui/Screen';
@@ -40,11 +40,23 @@ export function InboxScreen() {
   }, []);
   const serverNow = Math.max(now, lastSyncAt ?? 0) + skewMs;
 
-  const open = (item: InboxItem) => {
-    markRead([item.name]);
-    const route = safeRoute(item.route);
-    if (route) router.push(route as never);
-    else if (item.route) toast.showInfo('This notification has nothing to open in the app.');
+  const open = useCallback(
+    (item: InboxItem) => {
+      markRead([item.name]);
+      const route = safeRoute(item.route);
+      if (route) router.push(route as never);
+      else if (item.route) toast.showInfo('This notification has nothing to open in the app.');
+    },
+    [markRead, toast],
+  );
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await sync({ full: true });
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const firstLoad = syncing && !lastSyncAt && items.length === 0;
@@ -52,7 +64,8 @@ export function InboxScreen() {
   return (
     <Screen
       title="Inbox"
-      onRefresh={() => sync({ full: true })}
+      scroll={false}
+      contentPadded={false}
       headerRight={
         unread > 0 ? (
           <Pressable onPress={markAllRead} hitSlop={8} style={s.hbtn} accessibilityRole="button" accessibilityLabel="Mark all read">
@@ -61,37 +74,53 @@ export function InboxScreen() {
         ) : undefined
       }
     >
-      {!available ? (
-        <Text style={s.note}>Your server does not have the notification inbox yet. Push notifications still arrive; this list fills once the server is updated.</Text>
-      ) : error ? (
-        <Text style={s.note}>{error}</Text>
-      ) : null}
-
-      {firstLoad ? (
-        <View style={{ gap: spacing.sm }}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} height={68} />)}</View>
-      ) : items.length === 0 ? (
-        <View style={s.empty}>
-          <Ionicons name="notifications-outline" size={36} color={COLORS.textMuted} />
-          <Text style={s.emptyTitle}>Nothing here yet</Text>
-          <Text style={s.emptyBody}>Deployments, new tasks, request updates and reminders sent to you appear here.</Text>
-        </View>
-      ) : (
-        items.map((i) => (
-          <Card key={i.name} onPress={() => open(i)} accessibilityLabel={`${i.read ? '' : 'Unread. '}${i.title}. ${i.body}`}>
-            <View style={s.head}>
-              {!i.read ? <View style={s.dot} /> : null}
-              <Text style={[s.title, !i.read && s.titleUnread]} numberOfLines={2}>{i.title}</Text>
-              <Text style={s.age}>{shortAge(i.createdMs, serverNow)}</Text>
+      <FlatList
+        data={firstLoad ? [] : items}
+        keyExtractor={(i) => i.name}
+        contentContainerStyle={s.list}
+        initialNumToRender={12}
+        windowSize={9}
+        removeClippedSubviews={Platform.OS === 'android'}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={COLORS.text} colors={[COLORS.text]} />}
+        ListHeaderComponent={
+          !available ? (
+            <Text style={s.note}>Your server does not have the notification inbox yet. Push notifications still arrive; this list fills once the server is updated.</Text>
+          ) : error ? (
+            <Text style={s.note}>{error}</Text>
+          ) : undefined
+        }
+        ListEmptyComponent={
+          firstLoad ? (
+            <View style={{ gap: spacing.sm }}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} height={68} />)}</View>
+          ) : (
+            <View style={s.empty}>
+              <Ionicons name="notifications-outline" size={36} color={COLORS.textMuted} />
+              <Text style={s.emptyTitle}>Nothing here yet</Text>
+              <Text style={s.emptyBody}>Deployments, new tasks, request updates and reminders sent to you appear here.</Text>
             </View>
-            {i.body ? <Text style={s.body} numberOfLines={3}>{i.body}</Text> : null}
-          </Card>
-        ))
-      )}
+          )
+        }
+        renderItem={({ item }) => <InboxRow item={item} serverNow={serverNow} onOpen={open} />}
+      />
     </Screen>
   );
 }
 
+const InboxRow = memo(function InboxRow({ item: i, serverNow, onOpen }: { item: InboxItem; serverNow: number; onOpen: (i: InboxItem) => void }) {
+  return (
+    <Card onPress={() => onOpen(i)} accessibilityLabel={`${i.read ? '' : 'Unread. '}${i.title}. ${i.body}`}>
+      <View style={s.head}>
+        {!i.read ? <View style={s.dot} /> : null}
+        <Text style={[s.title, !i.read && s.titleUnread]} numberOfLines={2}>{i.title}</Text>
+        <Text style={s.age}>{shortAge(i.createdMs, serverNow)}</Text>
+      </View>
+      {i.body ? <Text style={s.body} numberOfLines={3}>{i.body}</Text> : null}
+    </Card>
+  );
+});
+
 const s = StyleSheet.create({
+  list: { padding: spacing.lg, paddingBottom: spacing.xxl },
   hbtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: -spacing.sm },
   note: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textSecondary, marginBottom: spacing.md },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
