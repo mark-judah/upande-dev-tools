@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, type ListRenderItem } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Screen } from '@/core/ui/Screen';
@@ -77,6 +77,25 @@ function FleetList() {
       pending.current.delete(d.id);
     }
   }, [toast]);
+
+  const markActive = useCallback(
+    (d: DeviceRow) => {
+      setDeviceState(d, 'Active').catch((e) => toast.showError(String(e?.message ?? 'Could not update')));
+    },
+    [setDeviceState, toast],
+  );
+
+  // Stable renderer + memoised rows: typing in the search or toggling a filter no longer re-renders (and re-wires
+  // the swipe gesture of) every visible device.
+  const renderItem = useCallback<ListRenderItem<Item>>(
+    ({ item }) =>
+      item.kind === 'head' ? (
+        <Text style={s.group}>{item.title} · {item.count}</Text>
+      ) : (
+        <DeviceItem d={item.d} onOpen={open} onActive={markActive} onLost={setLost} />
+      ),
+    [open, markActive],
+  );
 
   const refresh = async () => {
     setRefreshing(true);
@@ -171,21 +190,10 @@ function FleetList() {
                 <Text style={s.emptyB}>Clear a filter or change the search.</Text>
               </View>
             }
-            renderItem={({ item }) =>
-              item.kind === 'head' ? (
-                <Text style={s.group}>{item.title} · {item.count}</Text>
-              ) : (
-                <View style={s.cell}>
-                  <SwipeRow
-                    radius={borderRadius.md}
-                    swipeRight={item.d.state !== 'Active' ? { label: 'Active', icon: 'checkmark-circle', color: COLORS.success, onTrigger: () => { setDeviceState(item.d, 'Active').catch((e) => toast.showError(String(e?.message ?? 'Could not update'))); } } : undefined}
-                    swipeLeft={item.d.state === 'Active' ? { label: 'Lost', icon: 'alert-circle', color: COLORS.danger, onTrigger: () => setLost(item.d) } : undefined}
-                  >
-                    <DeviceCard d={item.d} onPress={open} />
-                  </SwipeRow>
-                </View>
-              )
-            }
+            renderItem={renderItem}
+            removeClippedSubviews={Platform.OS === 'android'}
+            maxToRenderPerBatch={8}
+            updateCellsBatchingPeriod={40}
           />
           <ConfirmSheet
             visible={!!lost}
@@ -201,6 +209,30 @@ function FleetList() {
     </Screen>
   );
 }
+
+const DeviceItem = memo(function DeviceItem({
+  d,
+  onOpen,
+  onActive,
+  onLost,
+}: {
+  d: DeviceRow;
+  onOpen: (d: DeviceRow) => void;
+  onActive: (d: DeviceRow) => void;
+  onLost: (d: DeviceRow) => void;
+}) {
+  return (
+    <View style={s.cell}>
+      <SwipeRow
+        radius={borderRadius.md}
+        swipeRight={d.state !== 'Active' ? { label: 'Active', icon: 'checkmark-circle', color: COLORS.success, onTrigger: () => onActive(d) } : undefined}
+        swipeLeft={d.state === 'Active' ? { label: 'Lost', icon: 'alert-circle', color: COLORS.danger, onTrigger: () => onLost(d) } : undefined}
+      >
+        <DeviceCard d={d} onPress={onOpen} />
+      </SwipeRow>
+    </View>
+  );
+});
 
 const s = StyleSheet.create({
   header: { padding: spacing.lg, gap: spacing.md },
