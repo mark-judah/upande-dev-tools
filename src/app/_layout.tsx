@@ -17,6 +17,7 @@ import { useNetworkStore } from '@/core/network/store';
 import { hasDevAccess } from '@/navigation';
 import { NotificationsHost } from '@/features/notifications/NotificationsHost';
 import { CaptureHost } from '@/features/capture/CaptureHost';
+import { InstancePickerSheet } from '@/features/it/instances/InstancePickerSheet';
 import { MobileKitProvider } from '@upande/mobile-kit';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -81,6 +82,7 @@ export default function RootLayout() {
             <SideMenu />
             <CaptureHost />
             <NotificationsHost />
+            <InstancePickerSheet />
             <DialogHost />
           </ToastProvider>
       </SafeAreaProvider>

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ItSourceChip } from '@/features/it/shared/ItSourceChip';
 import { Screen } from '@/core/ui/Screen';
 import { Card } from '@/core/ui/Card';
 import { Skeleton } from '@/core/ui/Skeleton';
@@ -88,7 +87,6 @@ function Home() {
         <HomeSkeleton />
       ) : (
         <>
-          <ItSourceChip />
           <View style={s.live}>
             <View style={s.dot} />
             <Text style={s.liveText}>Live · updated {ago(updatedAt)} · refreshes every 60s</Text>

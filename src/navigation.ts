@@ -40,7 +40,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Apps and releases', href: '/it/apps', icon: 'apps-outline', roles: DEV },
       { label: 'People and access', href: '/it/people', icon: 'people-outline', roles: DEV },
       { label: 'Server pulse', href: '/it/server', icon: 'hardware-chip-outline', roles: DEV },
-      { label: 'IT data source', href: '/it-source', icon: 'swap-horizontal-outline', roles: DEV },
     ],
   },
   {
