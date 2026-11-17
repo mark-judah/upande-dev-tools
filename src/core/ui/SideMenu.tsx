@@ -7,7 +7,7 @@ import { SiteSwitcherSheet } from '@/core/auth/ServerSection';
 import { instanceLabel } from '@/core/auth/known-instances';
 import { useAuthStore } from '@/core/auth/store';
 import { APP_NAME, APP_VERSION } from '@/core/version';
-import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { TAB_HREFS, visibleGroups } from '@/navigation';
 import { useDrawer } from './drawer-store';
 import { showDialog } from './DialogHost';
