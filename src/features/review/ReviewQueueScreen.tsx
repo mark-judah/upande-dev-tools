@@ -438,10 +438,10 @@ function RowSkeleton() {
 const s = StyleSheet.create({
   list: { padding: spacing.lg, paddingBottom: 120 },
   header: { marginBottom: spacing.xs },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
-  tile: { width: '48.5%', flexGrow: 1, backgroundColor: COLORS.text, borderRadius: borderRadius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, minHeight: 68, justifyContent: 'center', borderWidth: 2, borderColor: COLORS.text },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.sm, marginBottom: spacing.md },
+  tile: { width: '48.5%', backgroundColor: COLORS.text, borderRadius: borderRadius.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, minHeight: 60, justifyContent: 'center', borderWidth: 2, borderColor: COLORS.text },
   tileActive: { borderColor: '#A3A3A3' },
-  tileValue: { fontFamily: fontFamily.bold, fontSize: fontSize.xxl, color: COLORS.textOnPrimary, lineHeight: 32 },
+  tileValue: { fontFamily: fontFamily.bold, fontSize: fontSize.xl, color: COLORS.textOnPrimary, lineHeight: 28 },
   tileLabel: { fontFamily: fontFamily.medium, fontSize: 12, color: '#D4D4D4' },
   note: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center', backgroundColor: COLORS.bgMuted, borderRadius: borderRadius.sm, padding: spacing.md, marginBottom: spacing.md },
   noteText: { flex: 1, fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textSecondary },

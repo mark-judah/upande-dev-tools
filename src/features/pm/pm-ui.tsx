@@ -10,7 +10,7 @@ import { useAuthStore } from '@/core/auth/store';
 import { PM } from '@/navigation';
 import { Avatar } from '@/features/detail/parts';
 import { Pill } from '@/features/shared/Pill';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { HEALTH_LABEL, type HealthKind } from './pm-api';
 
 export const DARK = '#171717';
@@ -97,7 +97,7 @@ export function Tile({ label, value, sub, tone = 'dark', onPress, subColor }: {
     <>
       <Text style={s.tileLabel} numberOfLines={1}>{label.toUpperCase()}</Text>
       <Text style={s.tileNum} numberOfLines={1}>{value}</Text>
-      {sub ? <Text style={[s.tileSub, subColor ? { color: subColor } : null]} numberOfLines={3}>{sub}</Text> : null}
+      {sub ? <Text style={[s.tileSub, subColor ? { color: subColor } : null]} numberOfLines={2}>{sub}</Text> : null}
     </>
   );
   const style = [s.tile, { backgroundColor: TONE_BG[tone] }];
@@ -295,10 +295,10 @@ const s = StyleSheet.create({
   empty: { paddingVertical: spacing.lg, alignItems: 'center', gap: 4 },
   emptyTitle: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.text },
   emptyBody: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textMuted, textAlign: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
-  tile: { borderRadius: 16, padding: spacing.md, width: '48.5%', minHeight: 96, gap: 2, justifyContent: 'space-between' },
-  tileLabel: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 0.6, color: GREY },
-  tileNum: { fontFamily: fontFamily.bold, fontSize: 30, color: '#FFFFFF' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.sm, marginBottom: spacing.md },
+  tile: { borderRadius: borderRadius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, width: '48.5%', minHeight: 72 },
+  tileLabel: { fontFamily: fontFamily.medium, fontSize: fontSize.xs, letterSpacing: 0.4, color: GREY },
+  tileNum: { fontFamily: fontFamily.bold, fontSize: fontSize.xl, lineHeight: 28, color: '#FFFFFF', marginTop: 2 },
   tileSub: { fontFamily: fontFamily.regular, fontSize: 11, lineHeight: 15, color: GREY },
   stack: { flexDirection: 'row', height: 18, borderRadius: 9, overflow: 'hidden', gap: 2 },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

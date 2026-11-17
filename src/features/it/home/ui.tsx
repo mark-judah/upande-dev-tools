@@ -98,7 +98,7 @@ export function Tile({ label, value, sub, tone, onPress, icon }: { label: string
         <Ionicons name={icon} size={16} color={t.accent} />
         <Text style={[st.tileLabel, { color: t.sub }]} numberOfLines={1}>{label}</Text>
       </View>
-      <Text style={[st.tileValue, { color: t.fg }]}>{value}</Text>
+      <Text style={[st.tileValue, { color: t.fg }]} numberOfLines={1}>{value}</Text>
       <Text style={[st.tileSub, { color: t.sub }]} numberOfLines={1}>{sub ?? ' '}</Text>
     </Pressable>
   );
@@ -148,10 +148,10 @@ const st = StyleSheet.create({
   barLabel: { width: 96, fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: COLORS.textSecondary },
   barTrack: { flex: 1, height: 10, borderRadius: 5, backgroundColor: COLORS.bgMuted, overflow: 'hidden' },
   barVal: { width: 36, textAlign: 'right', fontFamily: fontFamily.semiBold, fontSize: fontSize.sm, color: COLORS.text },
-  tile: { flexGrow: 1, flexBasis: '47%', borderRadius: borderRadius.lg, padding: spacing.lg, minHeight: 108, justifyContent: 'space-between' },
+  tile: { flexGrow: 1, flexBasis: '47%', borderRadius: borderRadius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, minHeight: 84, justifyContent: 'space-between' },
   tileTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   tileLabel: { fontFamily: fontFamily.medium, fontSize: fontSize.xs, textTransform: 'uppercase', letterSpacing: 0.5, flexShrink: 1 },
-  tileValue: { fontFamily: fontFamily.bold, fontSize: 34, lineHeight: 40 },
+  tileValue: { fontFamily: fontFamily.bold, fontSize: fontSize.xl, lineHeight: 28, marginTop: spacing.xs },
   tileSub: { fontFamily: fontFamily.regular, fontSize: fontSize.xs },
   chipScroll: { flexGrow: 0, marginBottom: spacing.md },
   chips: { gap: spacing.sm, paddingRight: spacing.lg },

@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { GROUPS, isQuickViewActive, QUICK_VIEWS, SCOPES, type Filters, type GroupBy, type Lens, type Scope } from './model';
 
 export type Stat = { key: string; label: string; value: number; hot?: boolean; on: boolean; onPress: () => void };
@@ -126,10 +126,10 @@ const s = StyleSheet.create({
   scopeChipCount: { fontFamily: fontFamily.regular, fontSize: 11, color: COLORS.textMuted },
   strip: { flexGrow: 0 },
   stripContent: { gap: spacing.sm, paddingHorizontal: spacing.lg },
-  tile: { width: 96, height: 56, backgroundColor: COLORS.text, borderRadius: 18, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'space-between', borderWidth: 2, borderColor: 'transparent' },
+  tile: { width: 96, height: 56, backgroundColor: COLORS.text, borderRadius: borderRadius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'space-between', borderWidth: 2, borderColor: 'transparent' },
   tileHot: { backgroundColor: '#3B0A0A' },
   tileOn: { borderColor: '#86EFAC' },
-  tileLabel: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 1, color: '#A3A3A3' },
+  tileLabel: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 0.4, color: '#A3A3A3' },
   tileNum: { fontFamily: fontFamily.bold, fontSize: 22, color: '#fff' },
   pills: { gap: spacing.sm, paddingHorizontal: spacing.lg, alignItems: 'center' },
   pill: { alignSelf: 'flex-start', flexShrink: 0, minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, borderRadius: 999, backgroundColor: COLORS.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.border },

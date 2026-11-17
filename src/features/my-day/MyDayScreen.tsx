@@ -11,7 +11,7 @@ import { ProgressBar } from '@/core/ui/ProgressBar';
 import { Skeleton } from '@/core/ui/Skeleton';
 import { useAuthStore } from '@/core/auth/store';
 import { relativeDue, timeOf, todayKey, type DueTone } from '@/core/date';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Pill } from '@/features/shared/Pill';
 import { NEXT_STAGE, type TaskRow } from '@/features/shared/types';
 import { useAchievements } from '@/features/gamification/achievements-store';
@@ -156,9 +156,9 @@ export function MyDayScreen() {
         <View style={{ gap: spacing.md }}>
           <Skeleton height={116} style={{ borderRadius: 24 }} />
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <Skeleton height={76} style={{ flex: 1, borderRadius: 20 }} />
-            <Skeleton height={76} style={{ flex: 1, borderRadius: 20 }} />
-            <Skeleton height={76} style={{ flex: 1, borderRadius: 20 }} />
+            <Skeleton height={64} style={{ flex: 1, borderRadius: borderRadius.lg }} />
+            <Skeleton height={64} style={{ flex: 1, borderRadius: borderRadius.lg }} />
+            <Skeleton height={64} style={{ flex: 1, borderRadius: borderRadius.lg }} />
           </View>
           <Skeleton height={150} style={{ borderRadius: 24 }} />
           <Skeleton height={64} />
@@ -250,7 +250,7 @@ export function MyDayScreen() {
 function Tile({ label, value, hot, onPress }: { label: string; value: number; hot?: boolean; onPress: () => void }) {
   return (
     <Pressable style={[s.tile, hot && s.tileHot]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${value} ${label.toLowerCase()}`}>
-      <Text style={[s.chip, hot && { color: '#FECACA' }]}>{label}</Text>
+      <Text style={[s.chip, hot && { color: '#FECACA' }]} numberOfLines={1}>{label}</Text>
       <Text style={[s.tileNum, hot && { color: '#FCA5A5' }]}>{value.toLocaleString()}</Text>
     </Pressable>
   );
@@ -267,9 +267,9 @@ const s = StyleSheet.create({
   heroNum: { fontFamily: fontFamily.bold, fontSize: 36, color: '#fff', lineHeight: 42 },
   heroSub: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: '#BBF7D0' },
   tiles: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-  tile: { flex: 1, minHeight: 64, backgroundColor: COLORS.text, borderRadius: 20, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'space-between' },
+  tile: { flex: 1, minHeight: 64, backgroundColor: COLORS.text, borderRadius: borderRadius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'space-between' },
   tileHot: { backgroundColor: '#3B0A0A' },
-  tileNum: { fontFamily: fontFamily.bold, fontSize: 24, color: '#fff' },
+  tileNum: { fontFamily: fontFamily.bold, fontSize: fontSize.xl, lineHeight: 28, color: '#fff' },
   task: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 64, backgroundColor: COLORS.surface },
   taskDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border },
   taskBody: { flex: 1, paddingVertical: spacing.sm, gap: 4 },

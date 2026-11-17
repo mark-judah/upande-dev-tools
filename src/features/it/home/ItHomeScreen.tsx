@@ -55,7 +55,7 @@ const SEV = {
 function HomeSkeleton() {
   return (
     <View style={{ gap: spacing.md }} accessibilityLabel="Loading IT overview">
-      <View style={s.tiles}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} height={108} radius={borderRadius.lg} style={{ flexGrow: 1, flexBasis: '47%' }} />)}</View>
+      <View style={s.tiles}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} height={84} radius={borderRadius.lg} style={{ flexGrow: 1, flexBasis: '47%' }} />)}</View>
       <Skeleton height={40} radius={20} width={220} />
       <Skeleton height={176} radius={borderRadius.lg} />
       <Skeleton height={120} radius={borderRadius.md} />
