@@ -2,19 +2,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import type { PushProblem } from './push-model';
 
-export type Kind = 'due' | 'digest' | 'assignment' | 'comment' | 'deployment';
+export type Kind = 'due' | 'digest' | 'assignment' | 'request' | 'comment' | 'deployment';
 
 export const KIND_LABELS: Record<Kind, string> = {
   due: 'Due reminders',
   digest: 'Morning digest',
   assignment: 'Assignments',
+  request: 'Request updates',
   comment: 'Comments',
   deployment: 'Deployments',
 };
 
 const KEY = 'notification_prefs';
 
-const DEFAULT_KINDS: Record<Kind, boolean> = { due: true, digest: true, assignment: true, comment: true, deployment: true };
+const DEFAULT_KINDS: Record<Kind, boolean> = { due: true, digest: true, assignment: true, request: true, comment: true, deployment: true };
+
+/** Server `data.kind` values -> the toggle that controls them. Anything not listed (support, new kinds) always shows. */
+const KIND_ALIASES: Record<string, Kind> = { task: 'assignment', task_due: 'due', event: 'request' };
 
 /** The last token the server accepted, for whom (`site|email`), and when: re-registration is skipped while it holds. */
 export type Registration = { token: string; owner: string; at: number };
@@ -93,9 +97,10 @@ export const useNotificationStore = create<State>((set, get) => ({
   },
   shouldShow(kind) {
     const s = get();
-    // The backend names the due-date push `task_due`; the toggle is called `due`.
-    const k = kind === 'task_due' ? 'due' : kind;
-    return k && k in s.kinds ? s.kinds[k as Kind] : true;
+    if (!kind) return true;
+    const k = KIND_ALIASES[kind] ?? kind;
+    // Unknown kinds are shown, never silently dropped (own-property check: 'constructor' is not a kind).
+    return Object.prototype.hasOwnProperty.call(DEFAULT_KINDS, k) ? s.kinds[k as Kind] !== false : true;
   },
 }));
 
