@@ -73,7 +73,7 @@ export function SideMenu() {
                 <View style={s.profileBlock}>
                   <Pressable
                     style={s.profile}
-                    onPress={() => go('/settings')}
+                    onPress={() => go('/mobile-kit/settings')}
                     accessibilityRole="button"
                     accessibilityLabel="Account and settings"
                   >
@@ -121,7 +121,7 @@ export function SideMenu() {
               </ScrollView>
 
               <View style={s.footer}>
-                <Pressable style={s.item} onPress={() => go('/settings')} accessibilityRole="button">
+                <Pressable style={s.item} onPress={() => go('/mobile-kit/settings')} accessibilityRole="button">
                   <Ionicons name="settings-outline" size={22} color={COLORS.textSecondary} />
                   <Text style={s.itemLabel}>Settings</Text>
                 </Pressable>

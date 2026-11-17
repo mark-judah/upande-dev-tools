@@ -45,8 +45,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'You',
     items: [
-      { label: 'Notifications', href: '/notification-settings', icon: 'notifications-outline', roles: DEV },
-      { label: 'App updates and support', href: '/mobile-kit/settings', icon: 'cloud-download-outline' },
+      { label: 'Inbox', href: '/notifications', icon: 'notifications-outline', roles: DEV },
     ],
   },
 ];
