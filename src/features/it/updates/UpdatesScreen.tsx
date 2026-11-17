@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/core/ui/Screen';
@@ -67,13 +67,23 @@ function Updates() {
   const chaseN = (counts.forgot ?? 0) + (counts.cant_update ?? 0);
   const countOf = (k: string) => (k === 'chase' ? chaseN : counts[k] ?? 0);
   const selected = Object.values(sel);
-  const toggle = (p: Person) => {
+  const toggle = useCallback((p: Person) => {
     if (!remindable(p)) return;
     setSel((s) => {
       const n = { ...s };
       if (n[key(p)]) delete n[key(p)]; else n[key(p)] = p;
       return n;
     });
+  }, []);
+  const remindOne = useCallback((p: Person) => setTarget([p]), []);
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await reload();
+    } finally {
+      setRefreshing(false);
+    }
   };
   const selecting = selected.length > 0;
 
@@ -96,7 +106,8 @@ function Updates() {
       loading={loading && !data}
       error={!data ? error : null}
       onRetry={reload}
-      onRefresh={reload}
+      scroll={false}
+      contentPadded={false}
       headerRight={<Pressable onPress={() => setHistory(true)} hitSlop={8} style={s.hbtn} accessibilityRole="button" accessibilityLabel="Reminder history"><Ionicons name="time-outline" size={24} color={COLORS.text} /></Pressable>}
       footer={selecting ? (
         <View style={s.bar}>
@@ -106,55 +117,49 @@ function Updates() {
         </View>
       ) : undefined}
     >
-      <View style={s.search}>
-        <Ionicons name="search" size={18} color={COLORS.textMuted} />
-        <TextInput value={text} onChangeText={(v) => { setText(v); setSel({}); }} placeholder="Search name, email or team" placeholderTextColor={COLORS.textMuted} style={s.input} autoCapitalize="none" autoCorrect={false} accessibilityLabel="Search people" />
-        {text ? <Pressable onPress={() => setText('')} hitSlop={10} accessibilityLabel="Clear search"><Ionicons name="close-circle" size={18} color={COLORS.textMuted} /></Pressable> : null}
-      </View>
-      <ChipRow value={bucket} onChange={(k) => { setBucket(k); setSel({}); }} items={BUCKETS.map((b) => ({ key: b.key, label: `${b.label} ${data ? countOf(b.key) : ''}`.trim() }))} />
-      {app ? <Text style={s.filter}>Only {app}</Text> : null}
-
-      {!data ? (
-        <View style={{ gap: spacing.sm }} accessibilityLabel="Loading people">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={76} radius={borderRadius.md} />)}</View>
-      ) : data.rows.length === 0 ? (
-        <Card>
-          <Text style={s.eT}>{search ? 'Nobody matches that search.' : bucket === 'chase' ? 'Nobody to chase. Everyone is up to date.' : 'Nobody here.'}</Text>
-          <Text style={s.eB}>{bucket === 'chase' && chaseN === 0 ? `${counts.away ?? 0} people are away and ${counts.current ?? 0} are current.` : 'Try another filter.'}</Text>
-        </Card>
-      ) : (
-        <>
-          {data.rows.map((p) => {
-            const b = BADGE[p.bucket] ?? BADGE.away;
-            const on = !!sel[key(p)];
-            const can = remindable(p);
-            return (
-              <View key={key(p)} style={{ marginBottom: spacing.sm }}>
-                <SwipeRow radius={borderRadius.md} disabled={!can || selecting} swipeRight={{ label: 'Remind', icon: 'notifications', color: '#052E16', onTrigger: () => setTarget([p]) }}>
-                  <Pressable
-                    onPress={() => (selecting ? toggle(p) : undefined)}
-                    onLongPress={() => toggle(p)}
-                    delayLongPress={300}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    accessibilityLabel={`${p.full_name}, ${p.app}, on ${p.installed || 'unknown'}, ${b.label}${can ? '. Long press to select, swipe right to remind' : ''}`}
-                    style={[s.row, on && s.rowOn]}
-                  >
-                    {selecting && can ? <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? COLORS.text : COLORS.textMuted} /> : null}
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={s.name} numberOfLines={1}>{p.full_name}</Text>
-                      <Text style={s.sub} numberOfLines={1}>{p.app.replace(/^Upande /, '')} · v{p.installed || '?'} to v{p.target || '?'}{p.released_days_ago != null ? ` · ${p.released_days_ago}d` : ''}</Text>
-                      <Text style={s.sub} numberOfLines={1}>{p.team || p.device || p.user}{p.reminded ? ` · reminded ${p.reminded}x` : ''}</Text>
-                    </View>
-                    <Pill label={b.label} tone={b.tone} />
-                  </Pressable>
-                </SwipeRow>
-              </View>
-            );
-          })}
-          {data.total > data.rows.length ? <Note>{`Showing ${data.rows.length} of ${data.total}. Search to narrow it down.`}</Note> : null}
-          <Note>Swipe right to remind one person. Long press to select several. A person can be reminded once every 20 hours.</Note>
-        </>
-      )}
+      {/* A virtualised list: the chase can hold hundreds of people, each a swipeable row. */}
+      <FlatList
+        data={data ? data.rows : []}
+        keyExtractor={key}
+        contentContainerStyle={s.list}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={9}
+        removeClippedSubviews={Platform.OS === 'android'}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={COLORS.text} colors={[COLORS.text]} />}
+        ListHeaderComponent={
+          <>
+            <View style={s.search}>
+              <Ionicons name="search" size={18} color={COLORS.textMuted} />
+              <TextInput value={text} onChangeText={(v) => { setText(v); setSel({}); }} placeholder="Search name, email or team" placeholderTextColor={COLORS.textMuted} style={s.input} autoCapitalize="none" autoCorrect={false} accessibilityLabel="Search people" />
+              {text ? <Pressable onPress={() => setText('')} hitSlop={10} accessibilityLabel="Clear search"><Ionicons name="close-circle" size={18} color={COLORS.textMuted} /></Pressable> : null}
+            </View>
+            <ChipRow value={bucket} onChange={(k) => { setBucket(k); setSel({}); }} items={BUCKETS.map((b) => ({ key: b.key, label: `${b.label} ${data ? countOf(b.key) : ''}`.trim() }))} />
+            {app ? <Text style={s.filter}>Only {app}</Text> : null}
+            {!data ? (
+              <View style={{ gap: spacing.sm }} accessibilityLabel="Loading people">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={76} radius={borderRadius.md} />)}</View>
+            ) : null}
+          </>
+        }
+        ListEmptyComponent={
+          data ? (
+            <Card>
+              <Text style={s.eT}>{search ? 'Nobody matches that search.' : bucket === 'chase' ? 'Nobody to chase. Everyone is up to date.' : 'Nobody here.'}</Text>
+              <Text style={s.eB}>{bucket === 'chase' && chaseN === 0 ? `${counts.away ?? 0} people are away and ${counts.current ?? 0} are current.` : 'Try another filter.'}</Text>
+            </Card>
+          ) : undefined
+        }
+        ListFooterComponent={
+          data && data.rows.length ? (
+            <>
+              {data.total > data.rows.length ? <Note>{`Showing ${data.rows.length} of ${data.total}. Search to narrow it down.`}</Note> : null}
+              <Note>Swipe right to remind one person. Long press to select several. A person can be reminded once every 20 hours.</Note>
+            </>
+          ) : undefined
+        }
+        renderItem={({ item }) => <PersonItem p={item} on={!!sel[key(item)]} selecting={selecting} onToggle={toggle} onRemind={remindOne} />}
+      />
 
       <ConfirmSheet
         visible={!!target}
@@ -170,6 +175,46 @@ function Updates() {
   );
 }
 
+const PersonItem = memo(function PersonItem({
+  p,
+  on,
+  selecting,
+  onToggle,
+  onRemind,
+}: {
+  p: Person;
+  on: boolean;
+  selecting: boolean;
+  onToggle: (p: Person) => void;
+  onRemind: (p: Person) => void;
+}) {
+  const b = BADGE[p.bucket] ?? BADGE.away;
+  const can = remindable(p);
+  return (
+    <View style={{ marginBottom: spacing.sm }}>
+      <SwipeRow radius={borderRadius.md} disabled={!can || selecting} swipeRight={{ label: 'Remind', icon: 'notifications', color: '#052E16', onTrigger: () => onRemind(p) }}>
+        <Pressable
+          onPress={() => (selecting ? onToggle(p) : undefined)}
+          onLongPress={() => onToggle(p)}
+          delayLongPress={300}
+          accessibilityRole="button"
+          accessibilityState={{ selected: on }}
+          accessibilityLabel={`${p.full_name}, ${p.app}, on ${p.installed || 'unknown'}, ${b.label}${can ? '. Long press to select, swipe right to remind' : ''}`}
+          style={[s.row, on && s.rowOn]}
+        >
+          {selecting && can ? <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? COLORS.text : COLORS.textMuted} /> : null}
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={s.name} numberOfLines={1}>{p.full_name}</Text>
+            <Text style={s.sub} numberOfLines={1}>{p.app.replace(/^Upande /, '')} · v{p.installed || '?'} to v{p.target || '?'}{p.released_days_ago != null ? ` · ${p.released_days_ago}d` : ''}</Text>
+            <Text style={s.sub} numberOfLines={1}>{p.team || p.device || p.user}{p.reminded ? ` · reminded ${p.reminded}x` : ''}</Text>
+          </View>
+          <Pill label={b.label} tone={b.tone} />
+        </Pressable>
+      </SwipeRow>
+    </View>
+  );
+});
+
 export default function UpdatesScreen() {
   return (
     <ItGate title="Update chase">
@@ -179,6 +224,7 @@ export default function UpdatesScreen() {
 }
 
 const s = StyleSheet.create({
+  list: { padding: spacing.lg, paddingBottom: spacing.xxl },
   hbtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   search: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: COLORS.bgMuted, borderRadius: borderRadius.full, paddingHorizontal: spacing.lg, minHeight: 44, marginBottom: spacing.md },
   input: { flex: 1, fontFamily: fontFamily.regular, fontSize: fontSize.md, color: COLORS.text, minHeight: 44 },
