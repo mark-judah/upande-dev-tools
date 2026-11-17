@@ -47,9 +47,9 @@ const CARD_META: Record<string, { icon: keyof typeof Ionicons.glyphMap; title: (
   away: { icon: 'moon-outline', title: (c) => `${c.count} people have not opened the app in a while`, body: () => 'Not seen for a long time. Check whether they still use it.' },
 };
 const SEV = {
-  high: { bg: '#FEF2F2', bar: '#EF4444', fg: '#991B1B', label: 'Urgent' },
-  medium: { bg: '#FFFBEB', bar: '#F59E0B', fg: '#92400E', label: 'Soon' },
-  low: { bg: '#F5F5F5', bar: '#A3A3A3', fg: '#525252', label: 'Watch' },
+  high: { bg: '#FEF2F2', fg: '#991B1B', label: 'Urgent' },
+  medium: { bg: '#FFFBEB', fg: '#92400E', label: 'Soon' },
+  low: { bg: '#F5F5F5', fg: '#525252', label: 'Watch' },
 };
 
 function HomeSkeleton() {
@@ -143,7 +143,6 @@ function Home() {
               return (
                 <Card key={c.key} style={{ padding: 0, overflow: 'hidden' }} onPress={() => go(ROUTES[c.key] ?? '/it')} accessibilityLabel={`${meta.title(c)}. ${meta.body(c)}. Open`}>
                   <View style={{ flexDirection: 'row' }}>
-                    <View style={{ width: 5, backgroundColor: sev.bar }} />
                     <View style={s.cardBody}>
                       <View style={[s.cardIcon, { backgroundColor: sev.bg }]}><Ionicons name={meta.icon} size={20} color={sev.fg} /></View>
                       <View style={{ flex: 1, gap: 2 }}>

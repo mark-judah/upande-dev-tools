@@ -6,7 +6,7 @@ import { Skeleton } from '@/core/ui/Skeleton';
 import { SwipeRow, type SwipeAction } from '@/core/ui/SwipeRow';
 import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Chip, type ChipTone } from './Chip';
-import { initials, priorityColor, selectable, swipeTargets, type Item } from './model';
+import { initials, selectable, swipeTargets, type Item } from './model';
 import type { Stage } from '@/features/shared/types';
 
 const KIND_ICON = {
@@ -34,6 +34,9 @@ const STAGE_TONE: Record<string, ChipTone> = {
 };
 
 const DUE_TONE = { late: 'danger', today: 'warn', soon: 'info', later: 'neutral', none: 'neutral' } as const;
+
+/** Only priorities that need attention get a chip; Medium and Low stay quiet. */
+const PRIORITY_TONE: Record<string, ChipTone> = { Urgent: 'danger', Critical: 'danger', High: 'warn' };
 
 export function Avatars({ names, max = 3 }: { names: string[]; max?: number }) {
   if (!names.length) return null;
@@ -88,6 +91,7 @@ function ItemRowImpl({ item, projectName, variant = 'row', onOpen, onAdvance, on
       </Text>
       <View style={s.meta}>
         {card || isTask ? <Ionicons name={KIND_ICON[item.doctype]} size={14} color={COLORS.textMuted} /> : null}
+        {item.priority && PRIORITY_TONE[item.priority] ? <Chip label={item.priority} tone={PRIORITY_TONE[item.priority]} /> : null}
         {due ? <Chip label={due.label} tone={DUE_TONE[due.tone]} icon="calendar-outline" /> : null}
         {!card ? <Chip label={item.stage} tone={STAGE_TONE[item.stage] ?? 'neutral'} /> : null}
         {item.project ? <Chip label={projectName || item.project} icon="folder-outline" maxWidth={118} /> : null}
@@ -103,7 +107,6 @@ function ItemRowImpl({ item, projectName, variant = 'row', onOpen, onAdvance, on
   if (card) {
     return (
       <View style={[s.wrap, s.card]}>
-        <View style={[s.bar, { backgroundColor: priorityColor(item.priority) }]} />
         <Pressable
           onPress={() => onOpen(item)}
           onLongPress={onMenu ? () => onMenu(item) : undefined}
@@ -142,7 +145,6 @@ function ItemRowImpl({ item, projectName, variant = 'row', onOpen, onAdvance, on
   return (
     <SwipeRow swipeRight={toAction(targets.right)} swipeLeft={toAction(targets.left)} disabled={selecting || !onMove}>
       <View style={[s.wrap, selected && s.selected]}>
-        <View style={[s.bar, { backgroundColor: priorityColor(item.priority) }]} />
         <View style={s.body}>
           {selecting ? (
             <View
@@ -199,7 +201,6 @@ export function RowSkeletons({ count = 7 }: { count?: number }) {
     <View>
       {Array.from({ length: count }).map((_, k) => (
         <View key={k} style={[s.wrap, { opacity: 1 - k * 0.1 }]}>
-          <View style={[s.bar, { backgroundColor: COLORS.border }]} />
           <View style={s.body}>
             <Skeleton width={36} height={36} radius={18} style={{ marginRight: spacing.md }} />
             <View style={s.main}>
@@ -235,10 +236,9 @@ const s = StyleSheet.create({
   },
   pressed: { backgroundColor: COLORS.bgMuted },
   selected: { backgroundColor: '#EEF2FF' },
-  bar: { width: 4, alignSelf: 'stretch', position: 'absolute', left: 0, top: 0, bottom: 0 },
-  body: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: spacing.md + 4 },
+  body: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: spacing.lg },
   mainPress: { flex: 1, flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', paddingRight: spacing.md },
-  cardMain: { flex: 1, paddingVertical: spacing.sm, paddingLeft: spacing.md + 4, paddingRight: spacing.md },
+  cardMain: { flex: 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   circle: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm, marginLeft: -spacing.xs },
   main: { flex: 1, minWidth: 0, paddingVertical: spacing.sm },
   title: { fontFamily: fontFamily.medium, fontSize: fontSize.md, color: COLORS.text, lineHeight: 20 },
