@@ -129,7 +129,7 @@ function Updates() {
             const can = remindable(p);
             return (
               <View key={key(p)} style={{ marginBottom: spacing.sm }}>
-                <SwipeRow disabled={!can || selecting} swipeRight={{ label: 'Remind', icon: 'notifications', color: '#052E16', onTrigger: () => setTarget([p]) }}>
+                <SwipeRow radius={borderRadius.md} disabled={!can || selecting} swipeRight={{ label: 'Remind', icon: 'notifications', color: '#052E16', onTrigger: () => setTarget([p]) }}>
                   <Pressable
                     onPress={() => (selecting ? toggle(p) : undefined)}
                     onLongPress={() => toggle(p)}

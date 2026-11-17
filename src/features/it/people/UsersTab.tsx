@@ -83,8 +83,8 @@ function UserItem({ u, me, ops }: { u: PersonRow; me: string | null; ops: Return
   const op = { name: u.name, full_name: u.full_name, profiles: u.profiles };
   const isMe = me === u.name;
   return (
-    <View style={{ borderRadius: borderRadius.md, overflow: 'hidden' }}>
     <SwipeRow
+      radius={borderRadius.md}
       disabled={!!blocked}
       swipeLeft={
         u.enabled
@@ -115,7 +115,6 @@ function UserItem({ u, me, ops }: { u: PersonRow; me: string | null; ops: Return
         </View>
       </Card>
     </SwipeRow>
-    </View>
   );
 }
 

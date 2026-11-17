@@ -86,6 +86,7 @@ function CrashRowBase({ p, maxPeople, selecting, selected, onOpen, onToggle, onL
 
   return (
     <SwipeRow
+      radius={borderRadius.md}
       disabled={selecting}
       swipeRight={open ? { label: 'Resolve', icon: 'checkmark-circle', color: '#16A34A', onTrigger: () => onResolve(p) } : { label: 'Reopen', icon: 'refresh', color: COLORS.text, onTrigger: () => onReopen(p) }}
       swipeLeft={open ? { label: 'Ignore', icon: 'eye-off', color: '#737373', onTrigger: () => onIgnore(p) } : undefined}
