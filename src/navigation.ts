@@ -23,14 +23,6 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: 'Code and servers',
-    items: [
-      { label: 'Repos', href: '/repos', icon: 'git-branch-outline', roles: DEV },
-      { label: 'Activity', href: '/activity', icon: 'pulse-outline', roles: DEV },
-      { label: 'Snapshots', href: '/snapshots', icon: 'camera-outline', roles: DEV },
-    ],
-  },
-  {
     title: 'IT workstation',
     items: [
       { label: 'IT home', href: '/it', icon: 'pulse', roles: DEV },
