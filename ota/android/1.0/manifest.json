@@ -1,9 +1,9 @@
 {
-  "id": "d463ec69-5dd6-4d9f-b399-9e79bdb337b1",
-  "createdAt": "2026-11-16T13:56:28.908Z",
+  "id": "d6073f9a-4d5d-4713-af04-928b6e8f2b5b",
+  "createdAt": "2026-11-17T21:24:25.216Z",
   "runtimeVersion": "1.0",
   "launchAsset": {
-    "hash": "lvN6uHak0mzwE6rDuHjXIi-o4R9tgZiu_kaA_4hV2j0",
+    "hash": "6Dgd98ztl7sdBWB9RuMgQW9Mp0Md2BiciHxrsI0eiyM",
     "key": "entry-ce3f6430bf7fd5a877fc8305c03edcea",
     "contentType": "application/javascript",
     "fileExtension": ".hbc",
@@ -618,7 +618,7 @@
     "expoClient": {
       "name": "Upande Dev Tools",
       "slug": "upande-dev-tools",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "orientation": "portrait",
       "icon": "./assets/images/upande_logo.png",
       "scheme": "upandedevtools",
@@ -644,7 +644,7 @@
           "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
           "android.permission.REQUEST_INSTALL_PACKAGES"
         ],
-        "versionCode": 5001
+        "versionCode": 5002
       },
       "plugins": [
         "./plugins/withReleaseSigning",
@@ -745,7 +745,8 @@
               "react-native-worklets": "0.13.0",
               "app.json (native fields)": "b63798f30af4"
             }
-          }
+          },
+          "apkTag": "v1.0.2"
         },
         "runtimeSdk": 58,
         "router": {
@@ -768,7 +769,7 @@
         "web"
       ]
     },
-    "appVersion": "1.0.1",
-    "publishedAt": "2026-11-16T13:56:28.956Z"
+    "appVersion": "1.0.2",
+    "publishedAt": "2026-11-17T21:24:25.240Z"
   }
 }
