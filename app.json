@@ -2,7 +2,7 @@
   "expo": {
     "name": "Upande Dev Tools",
     "slug": "upande-dev-tools",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/upande_logo.png",
     "scheme": "upandedevtools",
@@ -22,7 +22,7 @@
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
       ],
-      "versionCode": 5001
+      "versionCode": 5002
     },
     "plugins": [
       "./plugins/withReleaseSigning",
@@ -123,7 +123,8 @@
             "react-native-worklets": "0.13.0",
             "app.json (native fields)": "b63798f30af4"
           }
-        }
+        },
+        "apkTag": "v1.0.2"
       },
       "runtimeSdk": 58
     },
