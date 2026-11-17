@@ -8,7 +8,7 @@ import { Row } from '@/core/ui/Row';
 import { Button } from '@/core/ui/Button';
 import { ProgressBar } from '@/core/ui/ProgressBar';
 import { Segmented } from '@/core/ui/Segmented';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Avatar } from '@/features/detail/parts';
 import { useLoad } from '@/features/shared/useLoad';
 import { Pill } from '@/features/shared/Pill';
@@ -440,7 +440,7 @@ function ForecastCard({ p, sel, onSel }: { p: Portfolio; sel: number | null; onS
 }
 
 const s = StyleSheet.create({
-  hero: { backgroundColor: GREEN, borderRadius: 24, padding: spacing.lg, marginBottom: spacing.md, gap: 2 },
+  hero: { backgroundColor: GREEN, borderRadius: borderRadius.xl, padding: spacing.lg, marginBottom: spacing.md, gap: 2 },
   heroChip: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 0.6, color: '#86EFAC' },
   heroNum: { fontFamily: fontFamily.bold, fontSize: 44, color: '#FFFFFF', lineHeight: 52 },
   heroSub: { fontFamily: fontFamily.medium, fontSize: fontSize.md, color: '#BBF7D0' },

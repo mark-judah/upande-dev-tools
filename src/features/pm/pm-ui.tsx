@@ -70,10 +70,10 @@ export function Empty({ title, body }: { title: string; body?: string }) {
 export function PageSkeleton() {
   return (
     <View style={{ gap: spacing.md }} accessibilityLabel="Loading">
-      <Skeleton height={120} radius={24} />
+      <Skeleton height={120} radius={borderRadius.xl} />
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        <Skeleton height={96} radius={16} style={{ flex: 1 }} />
-        <Skeleton height={96} radius={16} style={{ flex: 1 }} />
+        <Skeleton height={72} radius={borderRadius.lg} style={{ flex: 1 }} />
+        <Skeleton height={72} radius={borderRadius.lg} style={{ flex: 1 }} />
       </View>
       <Skeleton height={180} radius={14} />
       <Skeleton height={140} radius={14} />

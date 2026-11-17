@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import type { Stage } from '@/features/shared/types';
 import { ItemRow } from './ItemRow';
 import { itemKey, STAGE_ORDER, type Item } from './model';
@@ -69,7 +69,7 @@ const s = StyleSheet.create({
   flex: { flex: 1 },
   col: {
     backgroundColor: COLORS.bgMuted,
-    borderRadius: 16,
+    borderRadius: borderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border,
     overflow: 'hidden',

@@ -28,9 +28,9 @@ export function AchievementsScreen() {
     <Screen title="Achievements" onRefresh={async () => { await load(); }} error={!data ? error : null} onRetry={load}>
       {!data ? (
         <>
-          <Skeleton height={150} style={{ borderRadius: 24, marginBottom: spacing.md }} />
+          <Skeleton height={150} style={{ borderRadius: borderRadius.xl, marginBottom: spacing.md }} />
           <Skeleton height={64} style={{ borderRadius: borderRadius.lg, marginBottom: spacing.md }} />
-          <Skeleton height={200} style={{ borderRadius: 16 }} />
+          <Skeleton height={200} style={{ borderRadius: borderRadius.lg }} />
         </>
       ) : (
         <>

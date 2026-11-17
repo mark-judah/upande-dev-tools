@@ -14,7 +14,7 @@ import {
 } from 'date-fns';
 import { todayKey } from '@/core/date';
 import { Segmented } from '@/core/ui/Segmented';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import type { Stage } from '@/features/shared/types';
 import { ItemRow } from './ItemRow';
 import { itemKey, priorityColor, type Item } from './model';
@@ -201,7 +201,7 @@ const s = StyleSheet.create({
   grid: {
     backgroundColor: COLORS.surface,
     marginHorizontal: spacing.lg,
-    borderRadius: 16,
+    borderRadius: borderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border,
     paddingBottom: spacing.xs,

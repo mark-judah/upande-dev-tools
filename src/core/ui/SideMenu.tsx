@@ -7,7 +7,7 @@ import { SiteSwitcherSheet } from '@/core/auth/ServerSection';
 import { instanceLabel } from '@/core/auth/known-instances';
 import { useAuthStore } from '@/core/auth/store';
 import { APP_NAME, APP_VERSION } from '@/core/version';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { TAB_HREFS, visibleGroups } from '@/navigation';
 import { useDrawer } from './drawer-store';
 import { showDialog } from './DialogHost';
@@ -154,7 +154,7 @@ const s = StyleSheet.create({
   name: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.text },
   email: { fontFamily: fontFamily.regular, fontSize: fontSize.xs, color: COLORS.textMuted },
   group: { marginBottom: spacing.sm },
-  groupTitle: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 1.2, color: COLORS.textMuted, paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs },
+  groupTitle: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 0.6, color: COLORS.textMuted, paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs },
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: 14 },
   itemActive: { backgroundColor: COLORS.text },
   itemLabel: { fontFamily: fontFamily.medium, fontSize: fontSize.md, color: COLORS.text },

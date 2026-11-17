@@ -15,7 +15,7 @@ import { useToast } from '@/core/ui/Toast';
 import { storage } from '@/core/storage';
 import { api, mapAxiosError } from '@/core/api/client';
 import { call } from '@/core/api/call';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { useLoad } from '@/features/shared/useLoad';
 import { Pill } from '@/features/shared/Pill';
 
@@ -218,7 +218,7 @@ export function DeploymentsScreen() {
 
 const s = StyleSheet.create({
   tiles: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-  tile: { flex: 1, minHeight: 72, backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.border, padding: spacing.md, justifyContent: 'space-between' },
+  tile: { flex: 1, minHeight: 72, backgroundColor: COLORS.surface, borderRadius: borderRadius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.border, padding: spacing.md, justifyContent: 'space-between' },
   tileActive: { backgroundColor: COLORS.text, borderColor: COLORS.text },
   tileFailed: { backgroundColor: '#7F1D1D', borderColor: '#7F1D1D' },
   num: { fontFamily: fontFamily.bold, fontSize: fontSize.xl, color: COLORS.text },

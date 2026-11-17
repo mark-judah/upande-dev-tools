@@ -154,20 +154,19 @@ export function MyDayScreen() {
 
       {firstLoad ? (
         <View style={{ gap: spacing.md }}>
-          <Skeleton height={116} style={{ borderRadius: 24 }} />
+          <Skeleton height={116} style={{ borderRadius: borderRadius.xl }} />
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <Skeleton height={64} style={{ flex: 1, borderRadius: borderRadius.lg }} />
             <Skeleton height={64} style={{ flex: 1, borderRadius: borderRadius.lg }} />
             <Skeleton height={64} style={{ flex: 1, borderRadius: borderRadius.lg }} />
           </View>
-          <Skeleton height={150} style={{ borderRadius: 24 }} />
+          <Skeleton height={150} style={{ borderRadius: borderRadius.xl }} />
           <Skeleton height={64} />
           <Skeleton height={64} />
         </View>
       ) : (
         <>
           <Pressable style={s.hero} onPress={() => goWork('today')} accessibilityRole="button" accessibilityLabel={`${dueToday} to do today. Open today's work`}>
-            <Ionicons name="checkmark-done" size={110} color="rgba(255,255,255,0.06)" style={s.heroGhost} />
             <Text style={s.chip}>TO DO TODAY</Text>
             <Text style={s.heroNum} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>{dueToday}</Text>
             <ProgressBar scale={1} trackColor="rgba(255,255,255,0.18)" fillColor="#86EFAC" value={donePrev ? doneWeek / donePrev : doneWeek > 0 ? 1 : 0} />
@@ -182,7 +181,7 @@ export function MyDayScreen() {
             <Tile label="TOMORROW" value={tomorrowN} onPress={() => goWork('tomorrow')} />
           </View>
 
-          {stats ? <ProgressCard data={stats} onSeeAll={() => router.push('/achievements' as never)} /> : <Skeleton height={150} style={{ borderRadius: 24, marginBottom: spacing.md }} />}
+          {stats ? <ProgressCard data={stats} onSeeAll={() => router.push('/achievements' as never)} /> : <Skeleton height={150} style={{ borderRadius: borderRadius.xl, marginBottom: spacing.md }} />}
 
           {nextMeeting ? (
             <Card style={s.meeting}>
@@ -261,9 +260,8 @@ const s = StyleSheet.create({
   streak: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: spacing.sm },
   streakText: { fontFamily: fontFamily.bold, fontSize: fontSize.md, color: COLORS.text },
   streakPts: { fontFamily: fontFamily.medium, fontSize: fontSize.xs, color: COLORS.textMuted },
-  hero: { backgroundColor: '#052E16', borderRadius: 24, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, marginBottom: spacing.sm, overflow: 'hidden', gap: 2 },
-  heroGhost: { position: 'absolute', right: -10, top: -10 },
-  chip: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 1.2, color: '#86EFAC' },
+  hero: { backgroundColor: '#052E16', borderRadius: borderRadius.xl, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, marginBottom: spacing.sm, overflow: 'hidden', gap: 2 },
+  chip: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 0.6, color: '#86EFAC' },
   heroNum: { fontFamily: fontFamily.bold, fontSize: 36, color: '#fff', lineHeight: 42 },
   heroSub: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: '#BBF7D0' },
   tiles: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },

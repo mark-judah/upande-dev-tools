@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { storage } from '@/core/storage';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 
 const KEY = 'swipe_hint_seen_v1';
 
@@ -36,7 +36,7 @@ export function SwipeHint({ style }: { style?: object }) {
 }
 
 const s = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 52, paddingLeft: spacing.md, paddingRight: spacing.xs, backgroundColor: COLORS.text, borderRadius: 16 },
+  wrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 52, paddingLeft: spacing.md, paddingRight: spacing.xs, backgroundColor: COLORS.text, borderRadius: borderRadius.lg },
   text: { flex: 1, fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: '#fff' },
   btn: { minHeight: 44, minWidth: 64, paddingHorizontal: spacing.md, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontFamily: fontFamily.semiBold, fontSize: fontSize.sm, color: '#86EFAC' },
