@@ -16,6 +16,7 @@ import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Button } from './Button';
 import { router } from 'expo-router';
 import { useDrawer } from './drawer-store';
+import { useScreenSlots } from './screen-slots';
 
 type Props = {
   title?: string;
@@ -54,6 +55,8 @@ export function Screen({
 }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const openDrawer = useDrawer((st) => st.setOpen);
+  const slots = useScreenSlots();
+  const trailing = tab ? slots.tabTrailing : null;
 
   const handleRefresh = onRefresh
     ? async () => {
@@ -143,9 +146,17 @@ export function Screen({
           )}
           <Text style={[s.title, tab && s.titleTab]} numberOfLines={1} accessibilityRole="header">{title}</Text>
           {/* Symmetric spacer keeps the title centred on pushed screens when there is no action */}
-          {headerRight ?? (tab ? null : <View style={s.menuBtn} />)}
+          {trailing ? (
+            <View style={s.trailing}>
+              {headerRight}
+              {trailing}
+            </View>
+          ) : (
+            headerRight ?? (tab ? null : <View style={s.menuBtn} />)
+          )}
         </View>
       ) : null}
+      {title && slots.top ? <View style={s.top}>{slots.top}</View> : null}
       {scroll && !loading && !error ? (
         // KeyboardAwareScrollView above already handles keyboard avoidance --
         // wrapping it in KeyboardAvoidingView too double-compensates on iOS.
@@ -172,6 +183,14 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     minHeight: 56,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+  },
+  trailing: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  top: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
     backgroundColor: COLORS.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
