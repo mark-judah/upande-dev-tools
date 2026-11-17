@@ -101,6 +101,9 @@ export function Screen({
         showsVerticalScrollIndicator={false}
         enableOnAndroid
         extraScrollHeight={40}
+        // The library defaults to scrollEventThrottle={1}: a JS event on every scrolled frame, on every screen, only
+        // to remember the offset for keyboard scrolling. A few updates a second are plenty and keep scrolling smooth.
+        scrollEventThrottle={64}
         refreshControl={
           handleRefresh ? (
             <RefreshControl

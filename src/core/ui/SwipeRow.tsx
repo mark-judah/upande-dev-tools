@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { GestureDetector, usePanGesture, type PanGestureActiveEvent } from 'react-native-gesture-handler';
@@ -68,15 +68,18 @@ export function SwipeRow({ children, swipeRight, swipeLeft, disabled, radius }: 
   const canLeft = !!swipeLeft;
   const active = !disabled && (canRight || canLeft);
 
-  const fire = useCallback(
-    (dir: 'right' | 'left') => {
-      const action = dir === 'right' ? swipeRight : swipeLeft;
-      if (!action) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      action.onTrigger();
-    },
-    [swipeRight, swipeLeft],
-  );
+  // Callers usually pass fresh action objects on every render. Keep the latest in a ref so the gesture is configured
+  // once per row (only when the allowed directions change), not on every render of a long list.
+  const actions = useRef({ swipeRight, swipeLeft });
+  useEffect(() => {
+    actions.current = { swipeRight, swipeLeft };
+  });
+  const fire = useCallback((dir: 'right' | 'left') => {
+    const action = dir === 'right' ? actions.current.swipeRight : actions.current.swipeLeft;
+    if (!action) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    action.onTrigger();
+  }, []);
 
   const config = useMemo(
     () => ({
@@ -132,7 +135,7 @@ export function SwipeRow({ children, swipeRight, swipeLeft, disabled, radius }: 
           accessible={false}
           accessibilityActions={[swipeRight, swipeLeft].filter(Boolean).map((a) => ({ name: (a as SwipeAction).label, label: (a as SwipeAction).label }))}
           onAccessibilityAction={(e) => {
-            const hit = [swipeRight, swipeLeft].find((a) => a?.label === e.nativeEvent.actionName);
+            const hit = [actions.current.swipeRight, actions.current.swipeLeft].find((a) => a?.label === e.nativeEvent.actionName);
             if (hit) hit.onTrigger();
           }}
         >
