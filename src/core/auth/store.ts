@@ -9,6 +9,7 @@ import { siteSessions } from './site-sessions';
 import { verifySession } from './site-check';
 import { loginDraft } from './login-draft';
 import { consumeInstanceSwitched, restartForInstance } from './restart';
+import { runBeforeSignOut } from './session-hooks';
 
 /** How long a switching sign-in waits for its register report before restarting. */
 const LOGIN_REPORT_WAIT_MS = 3000;
@@ -240,9 +241,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOutSite: async (url) => {
     const target = url ?? get().instanceUrl;
-    if (target) await siteSessions.clear(target);
     const live = get().instanceUrl;
-    if (!target || (live && instanceKey(live) === instanceKey(target))) {
+    const isLive = !target || (!!live && instanceKey(live) === instanceKey(target));
+    // While the cookie still works: let features undo what they registered for this person (the push token).
+    if (isLive && get().hasSession) await runBeforeSignOut('sign-out');
+    if (target) await siteSessions.clear(target);
+    if (isLive) {
       // The live site's copy goes too. Its password stays for biometric sign-in,
       // and roles go because the next person to sign in may not hold them.
       await Promise.all([storage.remove(StorageKeys.cookie), storage.remove(StorageKeys.userRoles)]);
@@ -272,6 +276,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   forgetDevice: async () => {
+    if (get().hasSession) await runBeforeSignOut('forget-device');
     const sites = await knownInstances.list();
     await Promise.all(sites.map((site) => siteSessions.wipe(site.url)));
     const live = get().instanceUrl;

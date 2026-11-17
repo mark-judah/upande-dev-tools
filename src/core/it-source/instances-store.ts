@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { safeKey } from '@/core/auth/secure-storage';
+import { onBeforeSignOut } from '@/core/auth/session-hooks';
 import { secure } from './secure';
 import {
   activeInstance,
@@ -197,3 +198,6 @@ export async function getActiveEndpoint(): Promise<ActiveEndpoint | null> {
 export function useActiveInstance(): ItInstance | null {
   return useItInstances((s) => activeInstance(s));
 }
+
+// "Forget this device" wipes every session on the phone, the IT instances' included (the list stays, all expired).
+onBeforeSignOut((reason) => (reason === 'forget-device' ? useItInstances.getState().signOutAll() : undefined));
