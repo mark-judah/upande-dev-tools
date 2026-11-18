@@ -1,13 +1,13 @@
 {
-  "id": "d6073f9a-4d5d-4713-af04-928b6e8f2b5b",
-  "createdAt": "2026-11-17T21:24:25.216Z",
+  "id": "2b003f5d-b9d5-40e0-850c-c090796ba780",
+  "createdAt": "2026-11-18T01:04:24.633Z",
   "runtimeVersion": "1.0",
   "launchAsset": {
-    "hash": "6Dgd98ztl7sdBWB9RuMgQW9Mp0Md2BiciHxrsI0eiyM",
-    "key": "entry-ce3f6430bf7fd5a877fc8305c03edcea",
+    "hash": "rNFtRrnE7u9eXtBr2E5NhkvGGCXpJqIwKomhIk_Ufpg",
+    "key": "entry-40374d1fd15f5ac9d2982272814a99d0",
     "contentType": "application/javascript",
     "fileExtension": ".hbc",
-    "url": "https://mark-judah.github.io/upande-dev-tools/ota/android/1.0/_expo/static/js/android/entry-ce3f6430bf7fd5a877fc8305c03edcea.hbc"
+    "url": "https://mark-judah.github.io/upande-dev-tools/ota/android/1.0/_expo/static/js/android/entry-40374d1fd15f5ac9d2982272814a99d0.hbc"
   },
   "assets": [
     {
@@ -618,7 +618,7 @@
     "expoClient": {
       "name": "Upande Dev Tools",
       "slug": "upande-dev-tools",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "orientation": "portrait",
       "icon": "./assets/images/upande_logo.png",
       "scheme": "upandedevtools",
@@ -644,7 +644,7 @@
           "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
           "android.permission.REQUEST_INSTALL_PACKAGES"
         ],
-        "versionCode": 5002
+        "versionCode": 5003
       },
       "plugins": [
         "./plugins/withReleaseSigning",
@@ -769,7 +769,7 @@
         "web"
       ]
     },
-    "appVersion": "1.0.2",
-    "publishedAt": "2026-11-17T21:24:25.240Z"
+    "appVersion": "1.0.3",
+    "publishedAt": "2026-11-18T01:04:24.651Z"
   }
 }
