@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import type { PushProblem } from './push-model';
 
-export type Kind = 'due' | 'digest' | 'assignment' | 'request' | 'comment' | 'deployment';
+export type Kind = 'due' | 'digest' | 'assignment' | 'request' | 'comment' | 'deployment' | 'duty';
 
 export const KIND_LABELS: Record<Kind, string> = {
   due: 'Due reminders',
@@ -11,11 +11,12 @@ export const KIND_LABELS: Record<Kind, string> = {
   request: 'Request updates',
   comment: 'Comments',
   deployment: 'Deployments',
+  duty: 'Duty rota',
 };
 
 const KEY = 'notification_prefs';
 
-const DEFAULT_KINDS: Record<Kind, boolean> = { due: true, digest: true, assignment: true, request: true, comment: true, deployment: true };
+const DEFAULT_KINDS: Record<Kind, boolean> = { due: true, digest: true, assignment: true, request: true, comment: true, deployment: true, duty: true };
 
 /** Server `data.kind` values -> the toggle that controls them. Anything not listed (support, new kinds) always shows. */
 const KIND_ALIASES: Record<string, Kind> = { task: 'assignment', task_due: 'due', event: 'request' };

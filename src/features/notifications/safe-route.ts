@@ -12,6 +12,7 @@ export const ROUTE_ALLOWLIST: readonly string[] = [
   '/review-queue',
   '/pm-dashboard',
   '/notifications',
+  '/duty',
 ];
 // Deliberately no '/it/...' paths: notifications come from the main site, while the IT screens show whichever IT
 // instance is active, so an IT link could open another site's record under the wrong instance.

@@ -37,6 +37,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'You',
     items: [
+      { label: 'Duty rota', href: '/duty', icon: 'calendar-outline', roles: DEV },
       { label: 'Inbox', href: '/notifications', icon: 'notifications-outline', roles: DEV },
     ],
   },
