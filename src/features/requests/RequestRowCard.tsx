@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Pill, priorityTone } from '@/features/shared/Pill';
-import { age, railIndex, RAIL, toneFor, type RequestRow } from './model';
+import { age, toneFor, type RequestRow } from './model';
 
 type Props = {
   item: RequestRow;
@@ -11,26 +11,6 @@ type Props = {
   onPress: () => void;
   onMenu?: () => void;
 };
-
-/** Five dots joined by a line: filled up to the current state, so progress reads without words. */
-export function ProgressRail({ state }: { state: string }) {
-  const idx = railIndex(state);
-  const off = idx < 0;
-  const color = off ? COLORS.border : toneFor(state).fg;
-  return (
-    <View
-      style={s.rail}
-      accessible
-      accessibilityLabel={off ? `Status ${state}` : `Step ${idx + 1} of ${RAIL.length}: ${state}`}
-    >
-      {RAIL.map((step, i) => (
-        <View key={step} style={s.railItem}>
-          <View style={[s.seg, { backgroundColor: i <= idx ? color : COLORS.border }]} />
-        </View>
-      ))}
-    </View>
-  );
-}
 
 function RequestRowCardBase({ item, mine, onPress, onMenu }: Props) {
   const tone = toneFor(item.workflow_state);
@@ -61,8 +41,6 @@ function RequestRowCardBase({ item, mine, onPress, onMenu }: Props) {
         {item.request_type ? <Pill label={item.request_type} tone="neutral" /> : null}
         {item.priority ? <Pill label={item.priority} tone={priorityTone(item.priority)} /> : null}
       </View>
-
-      <ProgressRail state={item.workflow_state} />
 
       <View style={s.meta}>
         <Text style={s.metaText} numberOfLines={1}>
@@ -112,9 +90,6 @@ const s = StyleSheet.create({
   pills: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.xs + 2 },
   state: { borderRadius: 999, paddingHorizontal: spacing.sm + 2, paddingVertical: 3 },
   stateText: { fontFamily: fontFamily.semiBold, fontSize: 12 },
-  rail: { flexDirection: 'row', gap: 4, marginTop: 2 },
-  railItem: { flex: 1 },
-  seg: { height: 4, borderRadius: 2 },
   meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   metaText: { flex: 1, fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textMuted },
   you: { fontFamily: fontFamily.semiBold, color: COLORS.text },

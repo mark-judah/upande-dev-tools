@@ -16,10 +16,16 @@ import { useAuthStore } from '@/core/auth/store';
 import { useNetworkStore } from '@/core/network/store';
 import { hasDevAccess } from '@/navigation';
 import { NotificationsHost } from '@/features/notifications/NotificationsHost';
+import { NotificationBell } from '@/features/notifications/NotificationBell';
+import { ScreenSlotsProvider } from '@/core/ui/screen-slots';
 import { CaptureHost } from '@/features/capture/CaptureHost';
+import { InstancePickerSheet } from '@/features/it/instances/InstancePickerSheet';
 import { MobileKitProvider } from '@upande/mobile-kit';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+/** The inbox bell on every tab screen's header. */
+const bell = <NotificationBell />;
 
 const PUBLIC_ROUTES = ['login', 'biometric-lock', 'no-access'];
 
@@ -74,13 +80,16 @@ export default function RootLayout() {
       <SafeAreaProvider>
           <ToastProvider>
             <StatusBar style="dark" />
-            <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
-              <Stack.Screen name="biometric-lock" options={{ animation: 'fade' }} />
-            </Stack>
+            <ScreenSlotsProvider tabTrailing={bell}>
+              <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
+                <Stack.Screen name="biometric-lock" options={{ animation: 'fade' }} />
+              </Stack>
+            </ScreenSlotsProvider>
             <OfflineBanner />
             <SideMenu />
             <CaptureHost />
             <NotificationsHost />
+            <InstancePickerSheet />
             <DialogHost />
           </ToastProvider>
       </SafeAreaProvider>

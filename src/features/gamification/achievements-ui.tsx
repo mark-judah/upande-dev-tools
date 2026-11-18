@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BottomSheet } from '@/core/ui/Dialog';
 import { ProgressBar } from '@/core/ui/ProgressBar';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { levelOf, OVERDUE_BONUS, PRIORITY_POINTS, type Achievements, type Badge, type Contributor } from './achievements-api';
 
 const DAYS = ['M', 'T', 'W', 'T', 'F'];
@@ -280,11 +280,11 @@ export function UnlockCard({ badges, onDismiss }: { badges: Badge[]; onDismiss: 
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: '#052E16', borderRadius: 24, paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs, marginBottom: spacing.md, overflow: 'hidden', gap: spacing.xs },
+  card: { backgroundColor: '#052E16', borderRadius: borderRadius.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs, marginBottom: spacing.md, overflow: 'hidden', gap: spacing.xs },
   chipRow: { flexDirection: 'row', alignItems: 'center' },
   info: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginVertical: -12 },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
-  cardChip: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 1.2, color: '#86EFAC' },
+  cardChip: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 0.6, color: '#86EFAC' },
   cardNum: { fontFamily: fontFamily.bold, fontSize: 36, lineHeight: 42, color: '#fff' },
   streakCol: { alignItems: 'flex-end', gap: spacing.xs },
   streakLine: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -308,7 +308,7 @@ const s = StyleSheet.create({
 
   scrollerWrap: { marginHorizontal: -spacing.lg },
   scroller: { paddingHorizontal: spacing.lg, gap: spacing.sm },
-  badge: { width: 150, borderRadius: 16, padding: spacing.md, gap: 4, alignSelf: 'flex-start' },
+  badge: { width: 150, borderRadius: borderRadius.lg, padding: spacing.md, gap: 4, alignSelf: 'flex-start' },
   badgeOn: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0' },
   badgeOff: { backgroundColor: COLORS.surfaceAlt, opacity: 0.6 },
   badgeLabel: { fontFamily: fontFamily.semiBold, fontSize: fontSize.sm, color: COLORS.text },
@@ -325,14 +325,14 @@ const s = StyleSheet.create({
   lbPts: { fontFamily: fontFamily.bold, fontSize: fontSize.sm, color: COLORS.text },
   empty: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textMuted },
 
-  coll: { backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.border, marginBottom: spacing.md, paddingHorizontal: spacing.lg },
+  coll: { backgroundColor: COLORS.surface, borderRadius: borderRadius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.border, marginBottom: spacing.md, paddingHorizontal: spacing.lg },
   collHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 52 },
   collTitle: { flex: 1, fontFamily: fontFamily.semiBold, fontSize: fontSize.sm, color: COLORS.text, textTransform: 'uppercase', letterSpacing: 0.4 },
   collMeta: { fontFamily: fontFamily.medium, fontSize: fontSize.sm, color: COLORS.textMuted },
   collBody: { paddingBottom: spacing.lg },
 
-  unlock: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: COLORS.text, borderRadius: 20, paddingLeft: spacing.lg, paddingVertical: spacing.sm, marginBottom: spacing.md },
-  unlockChip: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 1.2, color: '#FACC15' },
+  unlock: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: COLORS.text, borderRadius: borderRadius.xl, paddingLeft: spacing.lg, paddingVertical: spacing.sm, marginBottom: spacing.md },
+  unlockChip: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 0.6, color: '#FACC15' },
   unlockTitle: { fontFamily: fontFamily.bold, fontSize: fontSize.lg, color: '#fff' },
   unlockClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 });

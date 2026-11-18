@@ -73,7 +73,7 @@ export function SideMenu() {
                 <View style={s.profileBlock}>
                   <Pressable
                     style={s.profile}
-                    onPress={() => go('/settings')}
+                    onPress={() => go('/mobile-kit/settings')}
                     accessibilityRole="button"
                     accessibilityLabel="Account and settings"
                   >
@@ -121,7 +121,7 @@ export function SideMenu() {
               </ScrollView>
 
               <View style={s.footer}>
-                <Pressable style={s.item} onPress={() => go('/settings')} accessibilityRole="button">
+                <Pressable style={s.item} onPress={() => go('/mobile-kit/settings')} accessibilityRole="button">
                   <Ionicons name="settings-outline" size={22} color={COLORS.textSecondary} />
                   <Text style={s.itemLabel}>Settings</Text>
                 </Pressable>
@@ -154,7 +154,7 @@ const s = StyleSheet.create({
   name: { fontFamily: fontFamily.semiBold, fontSize: fontSize.md, color: COLORS.text },
   email: { fontFamily: fontFamily.regular, fontSize: fontSize.xs, color: COLORS.textMuted },
   group: { marginBottom: spacing.sm },
-  groupTitle: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 1.2, color: COLORS.textMuted, paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs },
+  groupTitle: { fontFamily: fontFamily.medium, fontSize: 10, letterSpacing: 0.6, color: COLORS.textMuted, paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs },
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: 14 },
   itemActive: { backgroundColor: COLORS.text },
   itemLabel: { fontFamily: fontFamily.medium, fontSize: fontSize.md, color: COLORS.text },

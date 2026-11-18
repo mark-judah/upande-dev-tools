@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ItSourceChip } from '@/features/it/shared/ItSourceChip';
 import { Screen } from '@/core/ui/Screen';
 import { Card } from '@/core/ui/Card';
 import { Skeleton } from '@/core/ui/Skeleton';
@@ -47,15 +46,15 @@ const CARD_META: Record<string, { icon: keyof typeof Ionicons.glyphMap; title: (
   away: { icon: 'moon-outline', title: (c) => `${c.count} people have not opened the app in a while`, body: () => 'Not seen for a long time. Check whether they still use it.' },
 };
 const SEV = {
-  high: { bg: '#FEF2F2', bar: '#EF4444', fg: '#991B1B', label: 'Urgent' },
-  medium: { bg: '#FFFBEB', bar: '#F59E0B', fg: '#92400E', label: 'Soon' },
-  low: { bg: '#F5F5F5', bar: '#A3A3A3', fg: '#525252', label: 'Watch' },
+  high: { bg: '#FEF2F2', fg: '#991B1B', label: 'Urgent' },
+  medium: { bg: '#FFFBEB', fg: '#92400E', label: 'Soon' },
+  low: { bg: '#F5F5F5', fg: '#525252', label: 'Watch' },
 };
 
 function HomeSkeleton() {
   return (
     <View style={{ gap: spacing.md }} accessibilityLabel="Loading IT overview">
-      <View style={s.tiles}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} height={108} radius={borderRadius.lg} style={{ flexGrow: 1, flexBasis: '47%' }} />)}</View>
+      <View style={s.tiles}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} height={84} radius={borderRadius.lg} style={{ flexGrow: 1, flexBasis: '47%' }} />)}</View>
       <Skeleton height={40} radius={20} width={220} />
       <Skeleton height={176} radius={borderRadius.lg} />
       <Skeleton height={120} radius={borderRadius.md} />
@@ -88,7 +87,6 @@ function Home() {
         <HomeSkeleton />
       ) : (
         <>
-          <ItSourceChip />
           <View style={s.live}>
             <View style={s.dot} />
             <Text style={s.liveText}>Live · updated {ago(updatedAt)} · refreshes every 60s</Text>
@@ -143,7 +141,6 @@ function Home() {
               return (
                 <Card key={c.key} style={{ padding: 0, overflow: 'hidden' }} onPress={() => go(ROUTES[c.key] ?? '/it')} accessibilityLabel={`${meta.title(c)}. ${meta.body(c)}. Open`}>
                   <View style={{ flexDirection: 'row' }}>
-                    <View style={{ width: 5, backgroundColor: sev.bar }} />
                     <View style={s.cardBody}>
                       <View style={[s.cardIcon, { backgroundColor: sev.bg }]}><Ionicons name={meta.icon} size={20} color={sev.fg} /></View>
                       <View style={{ flex: 1, gap: 2 }}>

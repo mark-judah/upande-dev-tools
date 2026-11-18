@@ -1,52 +1,85 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import type { PushProblem } from './push-model';
 
-export type Kind = 'due' | 'digest' | 'assignment' | 'comment' | 'deployment';
+export type Kind = 'due' | 'digest' | 'assignment' | 'request' | 'comment' | 'deployment' | 'duty';
 
 export const KIND_LABELS: Record<Kind, string> = {
   due: 'Due reminders',
   digest: 'Morning digest',
   assignment: 'Assignments',
+  request: 'Request updates',
   comment: 'Comments',
   deployment: 'Deployments',
+  duty: 'Duty rota',
 };
 
 const KEY = 'notification_prefs';
 
-type Prefs = { enabled: boolean; kinds: Record<Kind, boolean> };
+const DEFAULT_KINDS: Record<Kind, boolean> = { due: true, digest: true, assignment: true, request: true, comment: true, deployment: true, duty: true };
 
-const DEFAULT_KINDS: Record<Kind, boolean> = { due: true, digest: true, assignment: true, comment: true, deployment: true };
+/** Server `data.kind` values -> the toggle that controls them. Anything not listed (support, new kinds) always shows. */
+const KIND_ALIASES: Record<string, Kind> = { task: 'assignment', task_due: 'due', event: 'request' };
 
-type State = Prefs & {
+/** The last token the server accepted, for whom (`site|email`), and when: re-registration is skipped while it holds. */
+export type Registration = { token: string; owner: string; at: number };
+
+/** Where push registration stands right now, for the Settings section. */
+export type PushPhase = 'idle' | 'working' | 'registered' | 'retrying' | 'failed';
+
+type Persisted = { enabled: boolean; kinds: Record<Kind, boolean>; registration: Registration | null };
+
+type State = Persisted & {
   hydrated: boolean;
-  /** Last token registered with the backend, kept so it can be unregistered. */
-  token: string | null;
+  phase: PushPhase;
+  problem: PushProblem | null;
+  /** Short human message for `problem` (never a raw error). */
+  message: string | null;
   hydrate: () => Promise<void>;
   setEnabled: (v: boolean) => void;
   setKind: (k: Kind, v: boolean) => void;
-  setToken: (t: string | null) => void;
+  setRegistration: (r: Registration | null) => void;
+  setPhase: (phase: PushPhase, problem?: PushProblem | null, message?: string | null) => void;
   shouldShow: (kind?: string) => boolean;
 };
 
-const persist = (s: State) =>
-  AsyncStorage.setItem(KEY, JSON.stringify({ enabled: s.enabled, kinds: s.kinds, token: s.token })).catch(() => {});
+let hydrating: Promise<void> | null = null;
 
+const persist = (s: Persisted) =>
+  AsyncStorage.setItem(KEY, JSON.stringify({ enabled: s.enabled, kinds: s.kinds, registration: s.registration })).catch(() => {});
+
+/** Push preferences (on/off, which in-app alerts show) and the live registration status. */
 export const useNotificationStore = create<State>((set, get) => ({
   enabled: false,
   kinds: DEFAULT_KINDS,
-  token: null,
+  registration: null,
   hydrated: false,
-  async hydrate() {
-    try {
-      const raw = await AsyncStorage.getItem(KEY);
-      if (raw) {
-        const p = JSON.parse(raw) as Partial<Prefs> & { token?: string | null };
-        set({ enabled: !!p.enabled, kinds: { ...DEFAULT_KINDS, ...p.kinds }, token: p.token ?? null });
+  phase: 'idle',
+  problem: null,
+  message: null,
+  hydrate() {
+    if (get().hydrated) return Promise.resolve();
+    if (hydrating) return hydrating;
+    hydrating = (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(KEY);
+        if (raw) {
+          const p = JSON.parse(raw) as Partial<Persisted> & { token?: unknown };
+          const r = p.registration;
+          set({
+            enabled: !!p.enabled,
+            kinds: { ...DEFAULT_KINDS, ...(p.kinds && typeof p.kinds === 'object' ? p.kinds : {}) },
+            registration:
+              r && typeof r === 'object' && typeof r.token === 'string' && typeof r.owner === 'string' && typeof r.at === 'number' ? r : null,
+          });
+        }
+      } catch {
+        // keep defaults
       }
-    } catch {
-      // keep defaults
-    }
-    set({ hydrated: true });
+      set({ hydrated: true });
+      hydrating = null;
+    })();
+    return hydrating;
   },
   setEnabled(v) {
     set({ enabled: v });
@@ -56,16 +89,19 @@ export const useNotificationStore = create<State>((set, get) => ({
     set({ kinds: { ...get().kinds, [k]: v } });
     persist(get());
   },
-  setToken(t) {
-    set({ token: t });
+  setRegistration(r) {
+    set({ registration: r });
     persist(get());
+  },
+  setPhase(phase, problem = null, message = null) {
+    set({ phase, problem, message });
   },
   shouldShow(kind) {
     const s = get();
-    if (!s.enabled) return false;
-    // The backend names the due-date push `task_due`; the toggle is called `due`.
-    const k = kind === 'task_due' ? 'due' : kind;
-    return k && k in s.kinds ? s.kinds[k as Kind] : true;
+    if (!kind) return true;
+    const k = KIND_ALIASES[kind] ?? kind;
+    // Unknown kinds are shown, never silently dropped (own-property check: 'constructor' is not a kind).
+    return Object.prototype.hasOwnProperty.call(DEFAULT_KINDS, k) ? s.kinds[k as Kind] !== false : true;
   },
 }));
 

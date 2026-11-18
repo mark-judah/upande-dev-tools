@@ -1,33 +1,48 @@
 import axios, { isAxiosError, type AxiosInstance } from 'axios';
-import { storage, StorageKeys } from '@/core/storage';
-import { callMethod } from '@/core/api/call';
 import { followDevHost } from '@/core/api/dev-host';
 import { logError, logRequest, logResponse, attachStartTime, elapsed } from '@/core/api/log';
-import { useItSource } from './it-source-store';
+import { getActiveEndpoint, useItInstances, type ActiveEndpoint } from './instances-store';
+import { isSessionExpiredResponse } from './instances-model';
 
-export type ItEndpoint = { baseUrl: string; cookie: string | null; /** True when it is the separately configured IT source. */ custom: boolean };
+export type { ActiveEndpoint } from './instances-store';
 
-/** The site the IT tools read from: the IT source if one is set, otherwise the main site the app is signed in to. */
-export async function getItEndpoint(): Promise<ItEndpoint | null> {
-  const st = useItSource.getState();
-  if (!st.hydrated) await st.hydrate();
-  const { source, cookie } = useItSource.getState();
-  if (source) return { baseUrl: source.url, cookie, custom: true };
-  const [baseUrl, mainCookie] = await Promise.all([storage.get(StorageKeys.instanceUrl), storage.get(StorageKeys.cookie)]);
-  return baseUrl ? { baseUrl, cookie: mainCookie, custom: false } : null;
+/**
+ * Thrown when an IT call is made with no active instance. The IT screens never get here in practice (ItGate shows
+ * "Choose an instance" first), but nothing ever falls back to the app's main site.
+ */
+export class NoInstanceError extends Error {
+  readonly code = 'no_instance';
+  constructor() {
+    super('Choose an IT instance first.');
+  }
+}
+
+/**
+ * Thrown in place of an answer that arrived after the developer switched instance (or signed in again): a late
+ * response from instance A must never render under instance B. Screens that see it can ignore it; their subtree is
+ * remounted by ItGate anyway.
+ */
+export class StaleInstanceError extends Error {
+  readonly code = 'stale_instance';
+  constructor() {
+    super('The IT instance changed while this was loading.');
+  }
+}
+
+export const isStaleInstanceError = (e: unknown): e is StaleInstanceError => e instanceof StaleInstanceError;
+
+/** The active instance's endpoint, or null. Never the main site. */
+export async function getItEndpoint(): Promise<ActiveEndpoint | null> {
+  return getActiveEndpoint();
 }
 
 let client: AxiosInstance | null = null;
 
+/** One axios instance for IT calls. Base URL and cookie are set per request from the endpoint captured at call time. */
 function itClient(): AxiosInstance {
   if (client) return client;
   const instance = axios.create({ timeout: 30000 });
-  instance.interceptors.request.use(async (config) => {
-    const ep = await getItEndpoint();
-    if (ep) config.baseURL = followDevHost(ep.baseUrl);
-    config.headers = config.headers ?? {};
-    if (ep?.cookie) (config.headers as Record<string, string>).Cookie = ep.cookie;
-    if (!config.headers['Content-Type']) (config.headers as Record<string, string>)['Content-Type'] = 'application/json';
+  instance.interceptors.request.use((config) => {
     attachStartTime(config);
     logRequest(config);
     return config;
@@ -38,11 +53,7 @@ function itClient(): AxiosInstance {
       return res;
     },
     (error) => {
-      if (isAxiosError(error)) {
-        logError(error, elapsed(error.config));
-        // The separate IT session ran out: flag it so the IT screens ask for a new sign-in.
-        if (error.response?.status === 401 && useItSource.getState().source) useItSource.getState().markExpired();
-      }
+      if (isAxiosError(error)) logError(error, elapsed(error.config));
       return Promise.reject(error);
     },
   );
@@ -50,20 +61,40 @@ function itClient(): AxiosInstance {
   return instance;
 }
 
+function stillCurrent(ep: ActiveEndpoint): boolean {
+  const st = useItInstances.getState();
+  return st.activeId === ep.id && st.epoch === ep.epoch;
+}
+
 /**
- * Calls a whitelisted method on the IT data source (see `useItSource`). With no separate source configured
- * this is the same as `callMethod`, so the IT tools keep working on the main site with zero setup.
+ * Calls a whitelisted method on the ACTIVE IT instance and unwraps `{ message }`. Frappe takes list and object
+ * arguments as JSON strings. A 401 (or Frappe's "session expired, carried on as Guest") marks only the instance the
+ * request went to as expired. An answer that lands after a switch is discarded with `StaleInstanceError`.
  */
 export async function callItMethod<T>(dotted: string, args: Record<string, unknown> = {}, get = false): Promise<T> {
-  const ep = await getItEndpoint();
-  if (!ep?.custom) return callMethod<T>(dotted, args, get);
+  const ep = await getActiveEndpoint();
+  if (!ep) throw new NoInstanceError();
   const encoded = Object.fromEntries(
     Object.entries(args)
       .filter(([, v]) => v !== undefined && v !== null)
       .map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : v]),
   );
-  const res = await itClient().request<{ message: T }>(
-    get ? { method: 'GET', url: `/api/method/${dotted}`, params: encoded } : { method: 'POST', url: `/api/method/${dotted}`, data: encoded },
-  );
-  return res.data.message;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (ep.cookie) headers.Cookie = ep.cookie;
+  const baseURL = followDevHost(ep.baseUrl);
+  const url = `/api/method/${dotted}`;
+  try {
+    const res = await itClient().request<{ message: T }>(
+      get ? { method: 'GET', baseURL, url, params: encoded, headers } : { method: 'POST', baseURL, url, data: encoded, headers },
+    );
+    if (!stillCurrent(ep)) throw new StaleInstanceError();
+    return res.data.message;
+  } catch (e) {
+    if (e instanceof StaleInstanceError) throw e;
+    if (isAxiosError(e) && isSessionExpiredResponse(e.response?.status, e.response?.data)) {
+      useItInstances.getState().markExpired(ep.id);
+    }
+    if (!stillCurrent(ep)) throw new StaleInstanceError();
+    throw e;
+  }
 }

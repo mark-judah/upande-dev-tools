@@ -44,7 +44,6 @@ function CrashRowBase({ p, maxPeople, selecting, selected, onOpen, onToggle, onL
       accessibilityState={{ selected }}
       style={({ pressed }) => [s.card, selected && s.cardSel, pressed && { backgroundColor: COLORS.bgMuted }]}
     >
-      <View style={[s.stripe, { backgroundColor: sev.color }]} />
       <View style={s.body}>
         <View style={s.top}>
           {selecting ? (
@@ -86,6 +85,7 @@ function CrashRowBase({ p, maxPeople, selecting, selected, onOpen, onToggle, onL
 
   return (
     <SwipeRow
+      radius={borderRadius.md}
       disabled={selecting}
       swipeRight={open ? { label: 'Resolve', icon: 'checkmark-circle', color: '#16A34A', onTrigger: () => onResolve(p) } : { label: 'Reopen', icon: 'refresh', color: COLORS.text, onTrigger: () => onReopen(p) }}
       swipeLeft={open ? { label: 'Ignore', icon: 'eye-off', color: '#737373', onTrigger: () => onIgnore(p) } : undefined}
@@ -107,7 +107,6 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   cardSel: { borderColor: COLORS.text, borderWidth: 2 },
-  stripe: { width: 5 },
   body: { flex: 1, padding: spacing.md, gap: spacing.sm },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   kind: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

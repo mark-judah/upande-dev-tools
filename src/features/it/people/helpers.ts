@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow, isValid } from 'date-fns';
 import { itUsers, type ItMeta } from '../shared/it-api';
+import { useItInstances } from '@/core/it-source/instances-store';
 
 export type PersonRow = {
   name: string;
@@ -95,17 +96,23 @@ export function passwordProblem(pw: string): string | null {
   return null;
 }
 
-let meCache: string | null = null;
-/** The signed-in user's id, from `usermgmt.meta`, so the UI can hide what the server refuses on yourself. */
+/** Per instance: who you are differs from one IT instance to the next. */
+const meCache = new Map<string, string>();
+/** The signed-in user's id on the active instance, from `usermgmt.meta`, so the UI can hide what the server refuses on yourself. */
 export function useMe(): string | null {
-  const [me, setMe] = useState<string | null>(meCache);
+  const activeId = useItInstances((s) => s.activeId);
+  const [me, setMe] = useState<string | null>(activeId ? (meCache.get(activeId) ?? null) : null);
   useEffect(() => {
-    if (meCache) return;
+    if (!activeId || meCache.has(activeId)) return;
+    let live = true;
     itUsers<ItMeta>('meta').then((m) => {
-      meCache = m.me;
-      setMe(m.me);
+      meCache.set(activeId, m.me);
+      if (live) setMe(m.me);
     }).catch(() => {});
-  }, []);
+    return () => {
+      live = false;
+    };
+  }, [activeId]);
   return me;
 }
 

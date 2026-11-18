@@ -23,14 +23,6 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: 'Code and servers',
-    items: [
-      { label: 'Repos', href: '/repos', icon: 'git-branch-outline', roles: DEV },
-      { label: 'Activity', href: '/activity', icon: 'pulse-outline', roles: DEV },
-      { label: 'Snapshots', href: '/snapshots', icon: 'camera-outline', roles: DEV },
-    ],
-  },
-  {
     title: 'IT workstation',
     items: [
       { label: 'IT home', href: '/it', icon: 'pulse', roles: DEV },
@@ -40,14 +32,13 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Apps and releases', href: '/it/apps', icon: 'apps-outline', roles: DEV },
       { label: 'People and access', href: '/it/people', icon: 'people-outline', roles: DEV },
       { label: 'Server pulse', href: '/it/server', icon: 'hardware-chip-outline', roles: DEV },
-      { label: 'IT data source', href: '/it-source', icon: 'swap-horizontal-outline', roles: DEV },
     ],
   },
   {
     title: 'You',
     items: [
-      { label: 'Notifications', href: '/notification-settings', icon: 'notifications-outline', roles: DEV },
-      { label: 'App updates and support', href: '/mobile-kit/settings', icon: 'cloud-download-outline' },
+      { label: 'Duty rota', href: '/duty', icon: 'calendar-outline', roles: DEV },
+      { label: 'Inbox', href: '/notifications', icon: 'notifications-outline', roles: DEV },
     ],
   },
 ];

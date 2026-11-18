@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -78,13 +78,16 @@ export function UsersTab({ refreshKey }: { refreshKey: number }) {
   );
 }
 
-function UserItem({ u, me, ops }: { u: PersonRow; me: string | null; ops: ReturnType<typeof usePersonOps> }) {
+// Memoised on the row and "me" only: the ops object is new each render, but its actions only open a sheet through a
+// state setter, so an older copy behaves the same. Typing in the search no longer re-renders every person.
+const UserItem = memo(
+  function UserItem({ u, me, ops }: { u: PersonRow; me: string | null; ops: ReturnType<typeof usePersonOps> }) {
   const blocked = whyReadOnly(u, me);
   const op = { name: u.name, full_name: u.full_name, profiles: u.profiles };
   const isMe = me === u.name;
   return (
-    <View style={{ borderRadius: borderRadius.md, overflow: 'hidden' }}>
     <SwipeRow
+      radius={borderRadius.md}
       disabled={!!blocked}
       swipeLeft={
         u.enabled
@@ -115,9 +118,10 @@ function UserItem({ u, me, ops }: { u: PersonRow; me: string | null; ops: Return
         </View>
       </Card>
     </SwipeRow>
-    </View>
   );
-}
+  },
+  (a, b) => a.u === b.u && a.me === b.me,
+);
 
 const s = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },

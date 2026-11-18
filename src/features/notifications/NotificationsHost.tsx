@@ -1,79 +1,177 @@
-import { useEffect } from 'react';
-import { AppState, Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import { router } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
+import { router, useSegments } from 'expo-router';
 import { useAuthStore } from '@/core/auth/store';
 import { useToast } from '@/core/ui/Toast';
+import { hasDevAccess } from '@/navigation';
+import { notificationsModule, type NotificationsModule } from './notifications-module';
 import { shouldShow, useNotificationStore } from './notification-store';
-import { registerPush } from './push';
+import { startPushLifecycle } from './push';
+import { useInbox } from './inbox-store';
+import { safeRoute } from './safe-route';
+import { notificationName, payloadData, usePendingOpen } from './pending-open';
 
-const ALLOWED = ['/task/', '/request/', '/deployments', '/backlog'];
+export { safeRoute } from './safe-route';
 
-/** Only in-app paths we know; anything else in a payload is ignored. */
-export function safeRoute(route: unknown): string | null {
-  if (typeof route !== 'string' || !route.startsWith('/') || route.startsWith('//') || route.includes('..')) return null;
-  if (route === '/') return route;
-  return ALLOWED.some((p) => route === p || route.startsWith(p.endsWith('/') ? p : `${p}/`) || route.startsWith(`${p}?`)) ? route : null;
+const PUBLIC_ROUTES = ['login', 'biometric-lock', 'no-access'];
+type Response = Parameters<Parameters<NotificationsModule['addNotificationResponseReceivedListener']>[0]>[0];
+type Notification = Parameters<Parameters<NotificationsModule['addNotificationReceivedListener']>[0]>[0];
+
+const N = notificationsModule();
+
+// OS banners are suppressed while the app is open: foreground alerts show as toasts instead. The on-phone test
+// notification from Settings is the exception, since its whole point is to show the system banner.
+try {
+  N?.setNotificationHandler({
+    handleNotification: async (n: Notification) => {
+      const test = payloadData(n?.request?.content?.data)?.local_test === true;
+      return { shouldShowBanner: test, shouldShowList: test, shouldPlaySound: test, shouldSetBadge: false };
+    },
+  });
+} catch {
+  // No handler: the OS default (nothing shown in the foreground) applies.
 }
 
-// OS banners are suppressed; foreground alerts are shown as toasts instead.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: false,
-    shouldShowList: false,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+/** Responses already handled, so the launch tap seen by both the listener and the "last response" is opened once. */
+const handled = new Set<string>();
 
-function open(response: Notifications.NotificationResponse | null) {
-  if (!response || response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
-  const route = safeRoute(response.notification.request.content.data?.route);
-  if (route) router.push(route as never);
+function onTap(res: Response | null | undefined) {
+  if (!res || !N || res.actionIdentifier !== N.DEFAULT_ACTION_IDENTIFIER) return;
+  const id = `${res.notification?.request?.identifier ?? ''}:${res.notification?.date ?? ''}`;
+  if (handled.has(id)) return;
+  handled.add(id);
+  const data = payloadData(res.notification?.request?.content?.data);
+  if (!data || data.local_test === true) return;
+  // Support replies belong to the kit's chat (it opens them itself).
+  if (data.upande_mobile === 'support') return;
+  const name = notificationName(data);
+  const route = safeRoute(data.route);
+  // A notification with no route we may open still lands somewhere useful: the inbox that holds it.
+  if (!route && !name) return;
+  usePendingOpen.getState().queue({ route: route ?? '/notifications', name });
 }
 
-/** Root-mounted: registers the push token after opt-in and handles incoming/tapped notifications. */
+function ownerOf(hasSession: boolean, url: string | null, email: string | null): string | null {
+  return hasSession && url && email ? `${url.toLowerCase()}|${email.toLowerCase()}` : null;
+}
+
+/**
+ * Root-mounted. Wires notifications into the app:
+ * - push: registers the token (after the person turned push on) and keeps it current (`startPushLifecycle`);
+ * - inbox: syncs on sign-in, foreground and every received push; cleared on sign-out;
+ * - taps: a tapped notification (also the one that cold-started the app) is queued and opened once the person is
+ *   signed in, unlocked and past the login/lock screens, then marked read;
+ * - foreground pushes show as a toast.
+ */
 export function NotificationsHost() {
+  const hydrated = useAuthStore((s) => s.hydrated);
   const hasSession = useAuthStore((s) => s.hasSession);
   const locked = useAuthStore((s) => s.biometricLocked);
+  const roles = useAuthStore((s) => s.roles);
+  const instanceUrl = useAuthStore((s) => s.instanceUrl);
+  const email = useAuthStore((s) => s.email);
   const enabled = useNotificationStore((s) => s.enabled);
-  const hydrate = useNotificationStore((s) => s.hydrate);
+  const hydratePrefs = useNotificationStore((s) => s.hydrate);
+  const pending = usePendingOpen((s) => s.pending);
+  const segments = useSegments();
   const toast = useToast();
-  // Push is native only: the web build (used for previews) has no notification module.
-  const ready = hasSession && !locked && Platform.OS !== 'web';
+
+  const first = segments[0] as string | undefined;
+  const owner = ownerOf(hasSession, instanceUrl, email);
+  const unlocked = hydrated && !!owner && !locked;
+  const ready = unlocked && hasDevAccess(roles ?? []) && !!first && !PUBLIC_ROUTES.includes(first);
 
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    void hydratePrefs();
+  }, [hydratePrefs]);
 
-  // Register (never prompts; permission is requested from the settings screen).
+  // Listeners live for the whole app, so a tap is never missed while signed out or locked (it is queued).
   useEffect(() => {
-    if (!ready || !enabled) return;
-    const run = () => {
-      registerPush().catch((e) => console.warn('push registration:', e instanceof Error ? e.message : e));
-    };
-    run();
-    const sub = AppState.addEventListener('change', (s) => s === 'active' && run());
-    return () => sub.remove();
-  }, [ready, enabled]);
+    if (!N) return;
+    const subs: { remove: () => void }[] = [];
+    try {
+      subs.push(N.addNotificationResponseReceivedListener(onTap));
+      subs.push(
+        N.addNotificationReceivedListener((n) => {
+          const c = n?.request?.content;
+          const data = payloadData(c?.data);
+          if (data?.local_test === true) return;
+          // The inbox is the source of truth: a push only says "there is something new".
+          if (useInbox.getState().owner) void useInbox.getState().sync();
+          const kind = typeof data?.kind === 'string' ? data.kind : undefined;
+          const text = [c?.title, c?.body].filter((x) => typeof x === 'string' && x).join(': ');
+          if (!text || !shouldShow(kind)) return;
+          const route = safeRoute(data?.route);
+          const name = notificationName(data);
+          toast.showInfo(text, route ? { action: { label: 'Open', onPress: () => usePendingOpen.getState().queue({ route, name }) } } : undefined);
+        }),
+      );
+    } catch {
+      // Without listeners, notifications still arrive in the tray and in the inbox.
+    }
+    // The tap that launched the app. Cleared after reading, so the next launch does not open it again.
+    (async () => {
+      try {
+        const last = await N.getLastNotificationResponseAsync();
+        onTap(last);
+        // Support replies are left for the kit, which reads the same launch tap to open its chat.
+        if (last && payloadData(last.notification?.request?.content?.data)?.upande_mobile !== 'support') {
+          await N.clearLastNotificationResponseAsync();
+        }
+      } catch {
+        // Older native side: nothing to recover.
+      }
+    })();
+    return () => subs.forEach((s) => s.remove());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // The inbox follows whoever is signed in: their cache at once, then the server. Signing out clears it, and drops a
+  // tap still waiting (it was meant for the person who just left). A tap that cold-started a signed-out app is kept
+  // and opens after sign-in.
+  const prevOwner = useRef<string | null>(null);
   useEffect(() => {
-    if (!ready) return;
-    // Cold start: the notification that launched the app.
-    open(Notifications.getLastNotificationResponse());
-    const tap = Notifications.addNotificationResponseReceivedListener(open);
-    const recv = Notifications.addNotificationReceivedListener((n) => {
-      const c = n.request.content;
-      const kind = c.data?.kind;
-      if (!shouldShow(typeof kind === 'string' ? kind : undefined)) return;
-      toast.showInfo([c.title, c.body].filter(Boolean).join(': '));
+    if (!hydrated) return;
+    const before = prevOwner.current;
+    prevOwner.current = owner;
+    if (!owner) {
+      void useInbox.getState().clear();
+      if (before) usePendingOpen.getState().clear();
+      return;
+    }
+    if (locked) return;
+    let live = true;
+    void useInbox
+      .getState()
+      .activate(owner)
+      .then(() => {
+        if (live) void useInbox.getState().sync();
+      });
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') void useInbox.getState().sync();
     });
     return () => {
-      tap.remove();
-      recv.remove();
+      live = false;
+      sub.remove();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  }, [hydrated, owner, locked]);
+
+  // Push: only after the person turned it on, and only while signed in and unlocked.
+  useEffect(() => {
+    if (!unlocked || !enabled) return;
+    return startPushLifecycle();
+  }, [unlocked, enabled, owner]);
+
+  // Open the queued tap once the app can show it.
+  useEffect(() => {
+    if (!ready || !pending) return;
+    const p = usePendingOpen.getState().take();
+    if (!p) return;
+    if (p.name) useInbox.getState().markRead([p.name]);
+    // Next tick: lets the auth gate finish its own navigation first. (No cleanup: taking the tap re-runs this
+    // effect, and cancelling here would drop the navigation.)
+    setTimeout(() => router.push(p.route as never), 0);
+  }, [ready, pending]);
 
   return null;
 }

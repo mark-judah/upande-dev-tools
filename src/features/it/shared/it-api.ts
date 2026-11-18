@@ -2,9 +2,9 @@ import { callItMethod as callMethod } from '@/core/it-source/it-client';
 
 /**
  * The IT dashboard backend (`upande_core.it_dashboard.*`). Gate: the "IT Team" role profile
- * (Administrator always passes). Calls go to the IT data source: a separately signed-in site if the developer set one
- * (see src/core/it-source), otherwise the main site. Errors arrive as standard Frappe 403/417 responses; use
- * `mapAxiosError` from '@/core/api/client' to get the message.
+ * (Administrator always passes). Every call goes to the ACTIVE IT instance (see src/core/it-source), never to the
+ * app's main site; with no instance chosen it throws `NoInstanceError`. Errors arrive as standard Frappe 403/417
+ * responses; use `mapAxiosError` from '@/core/api/client' to get the message.
  */
 const BASE = 'upande_core.it_dashboard';
 

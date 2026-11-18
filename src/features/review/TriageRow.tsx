@@ -124,7 +124,7 @@ function TriageRowBase({ item, description, duplicateOf, selecting, selected, ex
 export const TriageRow = memo(TriageRowBase);
 
 /** Spacing and rounded clip live outside the swipeable, so the action panels never peek through. */
-export const rowWrap = { marginBottom: spacing.md, borderRadius: borderRadius.md, overflow: 'hidden' } as const;
+export const rowWrap = { marginBottom: spacing.md } as const;
 
 const s = StyleSheet.create({
   card: { backgroundColor: COLORS.surface, borderRadius: borderRadius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.border, overflow: 'hidden' },

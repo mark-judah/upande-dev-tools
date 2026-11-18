@@ -4,7 +4,7 @@ import { Card } from '@/core/ui/Card';
 import { Button } from '@/core/ui/Button';
 import { Segmented } from '@/core/ui/Segmented';
 import { useLoad } from '@/features/shared/useLoad';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { itPerms, itRoles } from '../shared/it-api';
 import { SearchList } from './DoctypePicker';
 import { RulesView, type RulesResponse } from './RulesView';
@@ -99,7 +99,7 @@ const s = StyleSheet.create({
   title: { fontFamily: fontFamily.bold, fontSize: fontSize.xl, color: COLORS.text },
   sub: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: COLORS.textMuted },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  tile: { backgroundColor: COLORS.text, borderRadius: 16, padding: spacing.lg, gap: 4 },
+  tile: { backgroundColor: COLORS.text, borderRadius: borderRadius.lg, padding: spacing.lg, gap: 4 },
   big: { fontFamily: fontFamily.bold, fontSize: 40, color: '#fff' },
   tileText: { fontFamily: fontFamily.regular, fontSize: fontSize.md, color: '#D4D4D4' },
 });

@@ -6,7 +6,7 @@ import { Screen } from '@/core/ui/Screen';
 import { Card } from '@/core/ui/Card';
 import { Row } from '@/core/ui/Row';
 import { ProgressBar } from '@/core/ui/ProgressBar';
-import { COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { Avatar } from '@/features/detail/parts';
 import { ago } from '@/features/detail/format';
 import { useLoad } from '@/features/shared/useLoad';
@@ -516,7 +516,7 @@ function Insights({ data, d, weekSel, setWeekSel, setDrill, lists }: {
 }
 
 const s = StyleSheet.create({
-  header: { backgroundColor: GREEN, borderRadius: 24, padding: spacing.lg, marginBottom: spacing.md, gap: spacing.sm },
+  header: { backgroundColor: GREEN, borderRadius: borderRadius.xl, padding: spacing.lg, marginBottom: spacing.md, gap: spacing.sm },
   headName: { fontFamily: fontFamily.bold, fontSize: fontSize.xl, color: '#FFFFFF' },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   headReason: { fontFamily: fontFamily.regular, fontSize: fontSize.sm, color: '#BBF7D0', lineHeight: 19 },
