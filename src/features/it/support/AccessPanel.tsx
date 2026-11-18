@@ -10,7 +10,7 @@ import { Pill } from '@/features/shared/Pill';
 import { ConfirmSheet } from '../shared/ConfirmSheet';
 import { post } from '../shared/it-api';
 import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
-import type { AccessDetail } from './model';
+import { defaultRole, type AccessDetail } from './access-model';
 
 /** A request for access to a doctype: what was asked, what the person has, and Grant / Decline. */
 export function AccessPanel({ d, onChanged }: { d: AccessDetail; onChanged: () => void }) {
@@ -21,7 +21,11 @@ export function AccessPanel({ d, onChanged }: { d: AccessDetail; onChanged: () =
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const through = role ?? d.suggested[0] ?? null;
+  // `role` null = not touched yet (use the default), '' = a new role. Only roles that cover everything can be used:
+  // the server's grant refuses a role that gives less than what was asked.
+  const through = role === null ? defaultRole(d.suggested) : role || null;
+  const chosen = d.suggested.find((x) => x.role === through) ?? null;
+  const partial = d.suggested.filter((x) => !x.all);
   const rolesText = through ? `the existing role ${through}` : `a new role ${d.new_role}${d.new_role_exists ? ' (already exists)' : ''}`;
 
   const doDecline = async () => {
@@ -72,9 +76,19 @@ export function AccessPanel({ d, onChanged }: { d: AccessDetail; onChanged: () =
         <>
           <Text style={s.label}>Give it through</Text>
           <View style={s.pills}>
-            {d.suggested.map((r) => <DecisionChip key={r} label={r} selected={through === r} onPress={() => setRole(r)} />)}
+            {d.suggested.filter((x) => x.all).map((x) => <DecisionChip key={x.role} label={x.role} selected={through === x.role} onPress={() => setRole(x.role)} />)}
             <DecisionChip label={`New: ${d.new_role}`} selected={!through} onPress={() => setRole('')} />
           </View>
+          <Text style={s.hint}>
+            {chosen
+              ? `${chosen.role} covers everything needed${chosen.gives.length ? `: ${chosen.gives.join(', ')}` : ''}.`
+              : `A role made for ${d.doctype}${d.new_role_exists ? ' (it already exists and gets the missing permissions)' : ''}, giving exactly what was asked.`}
+          </Text>
+          {partial.length ? (
+            <Text style={s.hint}>
+              {`Only part of it: ${partial.slice(0, 4).map((x) => `${x.role} (${x.gives.join(', ') || 'some'})`).join('; ')}${partial.length > 4 ? ` and ${partial.length - 4} more` : ''}.`}
+            </Text>
+          ) : null}
         </>
       ) : null}
 

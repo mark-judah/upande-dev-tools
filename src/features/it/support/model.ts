@@ -25,12 +25,7 @@ export type Convo = {
   messages: Msg[]; statuses: string[]; device?: string; os?: string; app_version?: string;
 };
 
-export type AccessDetail = {
-  id: string; status: string; closed: boolean; person: string; user: string; enabled: boolean;
-  doctype: string; doctype_exists: boolean; document: string; asked: string[]; lacking: string[];
-  have: Record<string, boolean>; reason: string; roles_now: string[]; profiles_now: string[];
-  suggested: string[]; new_role: string; new_role_exists: boolean; refusal: string | null;
-};
+export type { AccessDetail, Suggestion } from './access-model';
 
 export const toDate = (v?: string | null) => {
   if (!v) return null;

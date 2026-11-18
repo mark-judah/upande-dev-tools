@@ -14,6 +14,8 @@ import { ConfirmSheet } from '../shared/ConfirmSheet';
 import { itAccess, itMobile, post } from '../shared/it-api';
 import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
 import { AccessPanel } from './AccessPanel';
+import { normalizeAccessDetail } from './access-model';
+import { asText } from '@/core/text';
 import { ChatBubble, type Bubble } from './ChatBubble';
 import { loadReplies, saveReplies } from './canned';
 import type { AccessDetail, Convo } from './model';
@@ -58,7 +60,7 @@ function Thread({ id }: { id: string }) {
     }
     if (!isChat) {
       try {
-        const a = await itAccess<AccessDetail>('detail', { name: id });
+        const a = normalizeAccessDetail(await itAccess<unknown>('detail', { name: id }));
         if (alive.current) setAccess(a);
       } catch {
         if (alive.current) setAccess(null); // not an access request
@@ -130,7 +132,7 @@ function Thread({ id }: { id: string }) {
   return (
     <Screen title={convo.person || 'Conversation'} scroll={false} contentPadded={false}>
       <View style={s.ctx}>
-        <Text style={s.subject} numberOfLines={1}>{convo.subject}{convo.app ? ` · ${convo.app}` : ''}</Text>
+        <Text style={s.subject} numberOfLines={1}>{asText(convo.subject)}{convo.app ? ` · ${asText(convo.app)}` : ''}</Text>
         {context ? (
           <View style={s.ctxRow}>
             <Ionicons name="phone-portrait-outline" size={14} color={COLORS.textMuted} />

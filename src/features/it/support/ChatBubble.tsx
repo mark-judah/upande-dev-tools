@@ -3,6 +3,7 @@ import { getItEndpoint } from '@/core/it-source/it-client';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { followDevHost } from '@/core/api/dev-host';
 import { borderRadius, COLORS, fontFamily, fontSize, spacing } from '@/core/theme';
+import { asText } from '@/core/text';
 import { clock } from './model';
 
 export type Bubble = { id: string; from_staff: boolean; by: string; text: string; sent_at: string; image?: string | null; state?: 'sending' | 'failed' };
@@ -23,18 +24,21 @@ function Attachment({ url }: { url: string }) {
 }
 
 export function ChatBubble({ m, onRetry }: { m: Bubble; onRetry?: () => void }) {
+  // Server text, defensively: a non-string here must not take the whole conversation down.
+  const by = asText(m.by);
+  const text = asText(m.text);
   const staff = m.from_staff;
   const failed = m.state === 'failed';
   return (
     <View style={[s.wrap, staff ? s.right : s.left]}>
-      {!staff && m.by ? <Text style={s.by}>{m.by}</Text> : null}
+      {!staff && by ? <Text style={s.by}>{by}</Text> : null}
       <View
         style={[s.bubble, staff ? s.staff : s.user, failed && s.failed, m.state === 'sending' && { opacity: 0.6 }]}
         accessible
-        accessibilityLabel={`${staff ? 'You' : m.by}: ${m.text}. ${failed ? 'Not sent' : clock(m.sent_at)}`}
+        accessibilityLabel={`${staff ? 'You' : by}: ${text}. ${failed ? 'Not sent' : clock(m.sent_at)}`}
       >
         {m.image ? <Attachment url={m.image} /> : null}
-        {m.text ? <Text style={[s.text, staff && { color: '#fff' }]} selectable>{m.text}</Text> : null}
+        {text ? <Text style={[s.text, staff && { color: '#fff' }]} selectable>{text}</Text> : null}
       </View>
       {failed ? (
         <Pressable onPress={onRetry} accessibilityRole="button" accessibilityLabel="Retry sending" style={s.retry}>
